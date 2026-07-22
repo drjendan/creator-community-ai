@@ -1,0 +1,7 @@
+import { HTMLAttributes } from "react";
+import { cn } from "@/lib/cn";
+
+// Centered, max-width content column with responsive gutters.
+export function Container({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("mx-auto w-full max-w-content px-6", className)} {...props} />;
+}
