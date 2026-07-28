@@ -22,7 +22,7 @@ export default async function LoginPage({
           <p className="mt-2 text-sm text-brand-600">
             {live
               ? "Use your UpNexx administrator credentials."
-              : "Supabase is not configured. This is a clearly labeled mock sign-in experience."}
+              : "Sign-in is temporarily unavailable because the authentication service is not configured."}
           </p>
 
           {error && (
@@ -57,9 +57,9 @@ export default async function LoginPage({
               </Button>
             </form>
           ) : (
-            <Button href="/dashboard" className="mt-7 w-full">
-              Enter Demo Dashboard
-            </Button>
+            <div role="alert" className="mt-7 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-brand-800">
+              Contact the platform administrator for assistance.
+            </div>
           )}
 
           <a href="/forgot-password" className="mt-5 block text-center text-sm font-semibold text-accent-700">

@@ -4,7 +4,12 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  resolve: { alias: { "@": path.resolve(__dirname, ".") } },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "."),
+      "server-only": path.resolve(__dirname, "tests/fixtures/server-only.ts")
+    }
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],

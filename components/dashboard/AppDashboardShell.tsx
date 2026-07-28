@@ -29,8 +29,8 @@ function groupNavigation(nav: DashboardNavItem[]): DashboardNavGroup[] {
         ["Overview", ["Overview"]],
         ["Content", ["Podcast", "Courses", "Resources", "Events"]],
         ["Audience", ["Community", "Memberships", "Members"]],
-        ["AI & insights", ["AI Studio", "AI Tools", "AI Coach", "Analytics"]],
-        ["Workspace", ["Branding", "Team", "Billing", "Settings"]]
+        ["AI & insights", ["AI Studio", "AI Coach", "Analytics"]],
+        ["Workspace", ["Branding", "Team", "Billing", "AI Providers", "Settings"]]
       ];
 
   return definitions.map(([label, itemLabels]) => ({
@@ -86,7 +86,7 @@ export function TenantSwitcher({
   );
 }
 
-export function UserMenu({ label = "Danielle" }: { label?: string }) {
+export function UserMenu({ label = "Account" }: { label?: string }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 

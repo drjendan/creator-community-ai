@@ -9,6 +9,7 @@
   | "guest";
 
 export type PlanId = "creator" | "growth" | "professional" | "enterprise";
+// Test-only data and helpers. Production surfaces must query real records.
 export type EpisodeStatus = "published" | "draft" | "scheduled";
 
 export interface Tenant {

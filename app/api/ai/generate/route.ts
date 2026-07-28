@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { decryptApiKey } from "@/lib/security/api-key-encryption";
+import { generateTenantText, generationErrorResponse } from "@/lib/ai/tenant-ai-service";
 import { getActiveTenantManager } from "@/lib/tenant-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -18,26 +18,6 @@ const schema = z.object({
   variations: z.number().int().min(1).max(5)
 });
 
-async function callProvider(provider: string, model: string, apiKey: string, prompt: string) {
-  if (provider === "openai") {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, messages: [{ role: "system", content: "You are a careful creator-content editor. Never invent source facts." }, { role: "user", content: prompt }] }) });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error?.message ?? "OpenAI generation failed.");
-    return { text: String(result.choices?.[0]?.message?.content ?? ""), input: result.usage?.prompt_tokens ?? 0, output: result.usage?.completion_tokens ?? 0 };
-  }
-  if (provider === "anthropic") {
-    const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" }, body: JSON.stringify({ model, max_tokens: 3000, messages: [{ role: "user", content: prompt }] }) });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error?.message ?? "Anthropic generation failed.");
-    return { text: String(result.content?.[0]?.text ?? ""), input: result.usage?.input_tokens ?? 0, output: result.usage?.output_tokens ?? 0 };
-  }
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error?.message ?? "Google generation failed.");
-  const usage = result.usageMetadata ?? {};
-  return { text: String(result.candidates?.[0]?.content?.parts?.[0]?.text ?? ""), input: usage.promptTokenCount ?? 0, output: usage.candidatesTokenCount ?? 0 };
-}
-
 export async function POST(request: NextRequest) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Check the source and generation controls." }, { status: 400 });
@@ -46,13 +26,13 @@ export async function POST(request: NextRequest) {
   const input = parsed.data;
   const admin = createAdminClient();
 
-  const [{ data: subscription }, { data: providerSettings }, { data: entitlement }] = await Promise.all([
+  const [{ data: subscription }, { data: entitlement }, { data: aiEnablement }] = await Promise.all([
     admin.from("tenant_subscriptions").select("ai_credit_allowance,current_ai_usage").eq("tenant_id", context.tenant.id).maybeSingle(),
-    admin.from("ai_provider_settings").select("provider,model,encrypted_api_key,enabled").eq("tenant_id", context.tenant.id).maybeSingle(),
-    admin.from("tenant_feature_entitlements").select("enabled").eq("tenant_id", context.tenant.id).eq("feature_key", "creator_ai_studio").maybeSingle()
+    admin.from("tenant_feature_entitlements").select("enabled").eq("tenant_id", context.tenant.id).eq("feature_key", "creator_ai_studio").maybeSingle(),
+    admin.from("tenant_ai_settings").select("enabled").eq("tenant_id", context.tenant.id).maybeSingle()
   ]);
   if (entitlement && !entitlement.enabled) return NextResponse.json({ error: "Creator AI Studio is not enabled for this tenant." }, { status: 403 });
-  if (!providerSettings?.enabled) return NextResponse.json({ error: "Connect and enable an AI provider before generating." }, { status: 409 });
+  if (!aiEnablement?.enabled) return NextResponse.json({ error: "AI is not enabled for this organization." }, { status: 403 });
   const allowance = subscription?.ai_credit_allowance ?? 0;
   const used = subscription?.current_ai_usage ?? 0;
   const reservedCredits = input.variations * 5;
@@ -69,9 +49,9 @@ SOURCE:
 ${input.sourceText}`;
   const started = Date.now();
   try {
-    const generated = await callProvider(providerSettings.provider, providerSettings.model, decryptApiKey(providerSettings.encrypted_api_key), prompt);
+    const generated = await generateTenantText({ tenantId: context.tenant.id, prompt });
     const variations = generated.text.split(/\n---\n/g).map((value) => value.trim()).filter(Boolean).slice(0, input.variations);
-    const credits = Math.max(reservedCredits, Math.ceil(generated.input / 1000) + Math.ceil(generated.output / 500));
+    const credits = Math.max(reservedCredits, Math.ceil(generated.usage.inputTokens / 1000) + Math.ceil(generated.usage.outputTokens / 500));
     const { data: generation, error: generationError } = await admin.from("ai_generations").insert({
       tenant_id: context.tenant.id, user_id: context.user.id, source_type: input.sourceType,
       source_id: input.sourceId || null, source_text: input.sourceText, output_type: input.outputType,
@@ -81,13 +61,14 @@ ${input.sourceText}`;
     if (generationError) throw generationError;
     await Promise.all([
       admin.from("tenant_subscriptions").update({ current_ai_usage: used + credits, updated_at: new Date().toISOString() }).eq("tenant_id", context.tenant.id),
-      admin.from("ai_usage").insert({ tenant_id: context.tenant.id, user_id: context.user.id, feature: "creator_studio", model_provider: providerSettings.provider, model: providerSettings.model, model_name: providerSettings.model, input_tokens: generated.input, output_tokens: generated.output, cost: 0, estimated_provider_cost: 0, credits_charged: credits, request_status: "completed" }),
+      admin.from("ai_usage").insert({ tenant_id: context.tenant.id, user_id: context.user.id, feature: "creator_studio", model_provider: generated.provider, model: generated.model, model_name: generated.model, input_tokens: generated.usage.inputTokens, output_tokens: generated.usage.outputTokens, cost: 0, estimated_provider_cost: 0, credits_charged: credits, request_status: "completed", metadata: { duration_ms: Date.now() - started } }),
       admin.from("tenant_ai_credit_transactions").insert({ tenant_id: context.tenant.id, user_id: context.user.id, feature: "creator_studio", transaction_type: "usage", credits: -credits, balance_after: Math.max(0, allowance - used - credits), reference_id: generation.id, metadata: { duration_ms: Date.now() - started } }),
       admin.from("audit_logs").insert({ tenant_id: context.tenant.id, user_id: context.user.id, action: "tenant.ai_generation.created", entity_type: "ai_generation", entity_id: generation.id, metadata: { output_type: input.outputType, credits } })
     ]);
     return NextResponse.json({ id: generation.id, variations, credits, remaining: Math.max(0, allowance - used - credits) });
   } catch (error) {
-    await admin.from("ai_usage").insert({ tenant_id: context.tenant.id, user_id: context.user.id, feature: "creator_studio", model_provider: providerSettings.provider, model: providerSettings.model, model_name: providerSettings.model, request_status: "failed" });
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Generation failed." }, { status: 502 });
+    const failure = generationErrorResponse(error);
+    await admin.from("ai_usage").insert({ tenant_id: context.tenant.id, user_id: context.user.id, feature: "creator_studio", model_provider: failure.provider ?? "unavailable", model: failure.model ?? "unavailable", model_name: failure.model ?? "unavailable", request_status: "failed", metadata: { error_code: failure.code, duration_ms: Date.now() - started } });
+    return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.status });
   }
 }

@@ -54,7 +54,7 @@ Typical entitlement dimensions:
 
 ## Audience membership examples
 
-Free, Premium, VIP, course membership, coaching program, church membership, association membership, and Custom. Names are tenant-facing labels; the data model currently normalizes plan type primarily to free/paid plus visibility and feature/access rows.
+Free, Premium, VIP, course membership, coaching program, nonprofit and faith-based organization, association membership, and Custom. The nonprofit and faith-based template begins with Community Member, Supporter, and Leadership. Generated plans are tenant-owned editable starting points with template provenance, benefits, color, display order, and active state; they are not permanent shared records.
 
 An audience plan may define:
 

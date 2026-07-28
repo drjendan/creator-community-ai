@@ -1,3 +1,23 @@
-import { MessageSquareText, Users } from "lucide-react";
+import { MessageSquareText } from "lucide-react";
+import { EmptyState } from "@/components/feedback/EmptyState";
 import { Card, Container, SectionHeading } from "@/components/ui";
-export default function CommunityPage() { return <main className="py-16"><Container><SectionHeading eyebrow="Member community" title="Make sense of AI with thoughtful peers." subtitle="Focused discussion spaces keep conversations useful, credible, and grounded in real work." /><div className="mt-10 grid gap-5 md:grid-cols-3">{[["AI Leadership", "284 members", "How are you measuring AI value beyond time saved?"], ["Responsible AI", "196 members", "What belongs in a practical human-review checklist?"], ["Education & Skills", "241 members", "Which durable skills matter most for students now?"]].map(([title, members, prompt]) => <Card key={title}><Users className="h-5 w-5 text-accent-600" /><h2 className="mt-4 font-display text-xl font-bold text-brand-900">{title}</h2><p className="mt-1 text-xs font-semibold text-brand-500">{members}</p><p className="mt-5 flex gap-2 text-sm leading-6 text-brand-700"><MessageSquareText className="mt-1 h-4 w-4 shrink-0" />{prompt}</p></Card>)}</div></Container></main>; }
+import { getAccessibleCommunitySpaces } from "@/lib/content/member-community";
+
+export default async function CommunityPage({ params }: { params: Promise<{ "tenant-slug": string }> }) {
+  const { "tenant-slug": slug } = await params;
+  const spaces = await getAccessibleCommunitySpaces(slug);
+  return (
+    <main className="py-16">
+      <Container>
+        <SectionHeading eyebrow="Member community" title="Community" subtitle="Discussion spaces available to your account appear here." />
+        {spaces.length === 0 ? (
+          <EmptyState className="mt-10" title="No community activity yet." description="Community spaces and conversations will appear after they are created and made available to you." icon={MessageSquareText} />
+        ) : (
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {spaces.map((space) => <Card key={space.id}><MessageSquareText className="h-5 w-5 text-accent-600" /><h2 className="mt-4 font-display text-xl font-bold text-brand-900">{space.name}</h2><p className="mt-3 text-sm leading-6 text-brand-600">{space.description || "No description has been added."}</p></Card>)}
+          </div>
+        )}
+      </Container>
+    </main>
+  );
+}

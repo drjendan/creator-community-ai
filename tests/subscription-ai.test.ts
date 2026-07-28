@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   canConsumeCredits, creditsRemaining, featureCatalog, membershipTemplates,
-  platformPlanSlugs, tenantTypes, terminologyFor
+  platformPlanSlugs, recommendedMembershipTemplate, tenantTypes, terminologyFor
 } from "@/lib/subscriptions";
 
 describe("tenant and subscription configuration", () => {
@@ -19,7 +19,30 @@ describe("tenant and subscription configuration", () => {
     expect(Object.keys(membershipTemplates)).toHaveLength(7);
     expect(membershipTemplates.free_premium.plans.map((plan) => plan.name)).toEqual(["Free", "Premium"]);
     expect(membershipTemplates.free_premium_vip.plans).toHaveLength(3);
+    expect(membershipTemplates.nonprofit_faith_based.label).toBe("Nonprofit & Faith-Based Organization");
+    expect(membershipTemplates.nonprofit_faith_based.plans.map((plan) => plan.name)).toEqual(["Community Member", "Supporter", "Leadership"]);
     expect(membershipTemplates.custom.plans).toEqual([]);
+  });
+  it("recommends membership templates from existing business types", () => {
+    expect(recommendedMembershipTemplate("nonprofit")).toBe("nonprofit_faith_based");
+    expect(recommendedMembershipTemplate("church_ministry")).toBe("nonprofit_faith_based");
+    expect(recommendedMembershipTemplate("educator")).toBe("course_membership");
+    expect(recommendedMembershipTemplate("coach")).toBe("coaching_program");
+    expect(recommendedMembershipTemplate("association")).toBe("association_membership");
+    expect(recommendedMembershipTemplate("consultant")).toBe("free_premium");
+    expect(recommendedMembershipTemplate("podcaster")).toBe("free_premium_vip");
+    expect(recommendedMembershipTemplate("other")).toBe("free_premium_vip");
+  });
+});
+
+describe("editable membership template migration", () => {
+  const migration = readFileSync("supabase/migrations/0008_editable_membership_template_metadata.sql", "utf8");
+  it("stores editable, tenant-owned template metadata", () => {
+    expect(migration).toContain("is_editable boolean not null default true");
+    expect(migration).toContain("created_from_template boolean not null default false");
+    expect(migration).toContain("template_key text");
+    expect(migration).toContain("benefits jsonb");
+    expect(migration).toContain("display_order");
   });
 });
 

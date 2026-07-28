@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annualPlanPrice, getPlan } from "@/lib/mock/podcastos";
+import { annualPlanPrice, getPlan } from "@/tests/fixtures/podcastos";
 import { canAccessPaidContent, canManageContent, canManageTenant, isPlatformAdmin } from "@/lib/access-control";
 import { canAccessRoute, redirectForUnauthorized } from "@/lib/auth";
 import { formatCompactNumber, formatCurrency, formatDate } from "@/lib/format";

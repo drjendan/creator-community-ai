@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui";
-import { EpisodeStatus } from "@/lib/mock/podcastos";
+type EpisodeStatus = "published" | "draft" | "scheduled";
 
 const toneMap: Record<EpisodeStatus, "success" | "warning" | "info"> = {
   published: "success",

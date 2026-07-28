@@ -1,6 +1,6 @@
 ﻿import { Check } from "lucide-react";
 import { Button, Card } from "@/components/ui";
-import type { plans } from "@/lib/mock/podcastos";
+import type { plans } from "@/lib/marketing";
 import { cn } from "@/lib/cn";
 
 type Plan = (typeof plans)[number] & { popular?: boolean };

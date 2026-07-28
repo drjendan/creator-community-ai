@@ -5,7 +5,8 @@ import { PublicNav } from "@/components/marketing/PublicNav";
 import { PricingCard } from "@/components/marketing/PricingCard";
 import { EpisodeCard, MembershipCard } from "@/components/content/ContentCards";
 import { DemoRequestForm } from "@/components/forms/DemoRequestForm";
-import { demoEpisodes, membershipPlans, plans } from "@/lib/mock/podcastos";
+import { demoEpisodes, membershipPlans } from "@/tests/fixtures/podcastos";
+import { plans } from "@/lib/marketing";
 
 describe("navigation and reusable cards", () => {
   it("renders public navigation and opens its mobile menu", async () => {
@@ -26,7 +27,7 @@ describe("navigation and reusable cards", () => {
 });
 
 describe("professional form", () => {
-  it("validates before showing its mock integration message", async () => {
+  it("validates before confirming a request", async () => {
     render(<DemoRequestForm />);
     await userEvent.click(screen.getByRole("button", { name: "Request a Demo" }));
     expect(screen.getByRole("status")).toHaveTextContent("Enter your name");
@@ -35,7 +36,7 @@ describe("professional form", () => {
     await userEvent.type(screen.getByLabelText("Organization"), "Nexx Jenn");
     await userEvent.type(screen.getByLabelText("Current audience size"), "100");
     await userEvent.click(screen.getByRole("button", { name: "Request a Demo" }));
-    expect(screen.getByRole("status")).toHaveTextContent("mock form is ready");
+    expect(screen.getByRole("status")).toHaveTextContent("request has been validated");
   });
 });
 

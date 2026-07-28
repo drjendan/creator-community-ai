@@ -27,7 +27,6 @@ export function Hero({ hero }: Pick<LandingContent, "hero">) {
           </div>
         </div>
 
-        {/* Product mock instead of a stock photo (design system, restrained visuals). */}
         <div className="relative mx-auto w-full max-w-md" aria-hidden="true">
           <div className="rounded-2xl border border-brand-200 bg-white p-6 shadow-pop">
             <div className="flex items-center justify-between">

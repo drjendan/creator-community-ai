@@ -1,4 +1,4 @@
-import type { Role } from "@/lib/mock/podcastos";
+import type { Role } from "@/lib/roles";
 
 const tenantManagers = new Set<Role>([
   "tenant_owner",

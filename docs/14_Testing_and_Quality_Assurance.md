@@ -5,6 +5,14 @@
 **Last Updated:** 2026-07-28  
 **Intended Audience:** Engineering, QA, product, security, and release owners
 
+## Production dashboard data policy
+
+- Production dashboards must never display fabricated business metrics, sample users, fake activity, or placeholder chart values.
+- Tenant-administrator data must be queried with the authenticated tenant ID and remain protected by tenant-aware RLS.
+- Platform-administrator totals must be calculated from real platform records.
+- When no records exist, the interface must show a contextual empty state and an appropriate next action.
+- Tests must cover empty and populated data, new and existing tenants, platform administrators, tenant administrators, and members.
+
 ## Contents
 
 1. [Current stack and pyramid](#current-test-stack)

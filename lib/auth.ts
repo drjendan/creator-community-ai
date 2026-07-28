@@ -1,4 +1,4 @@
-import type { Role } from "@/lib/mock/podcastos";
+import type { Role } from "@/lib/roles";
 import { canManageTenant, isPlatformAdmin } from "@/lib/access-control";
 
 export function canAccessRoute(pathname: string, role: Role | null) {

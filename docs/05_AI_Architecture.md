@@ -16,11 +16,11 @@
 
 ## Current status
 
-- **Implemented/Partial:** tenant BYO provider key storage, AES-256-GCM encryption, OpenAI/Anthropic/Google provider calls, creator source-to-draft generation, saved generations, credit checks/usage schema.
+- **Implemented/Partial:** per-tenant OpenAI/Anthropic/Google configurations, AES-256-GCM credential encryption, tenant/platform context authorization, connection verification, provider adapters, creator source-to-draft generation, saved generations, and credit checks/usage schema.
 - **Schema only/Planned:** vector ingestion, member conversations, recommendations, administrator insights.
 - **Not installed:** Vercel AI SDK.
 
-Provider logic currently lives in `app/api/ai/generate/route.ts`, not a standalone abstraction package. A dedicated service layer is recommended before expanding AI features.
+Provider logic is centralized in `lib/ai/provider-adapters.ts`; tenant generation resolves an enabled, verified default through `lib/ai/tenant-ai-service.ts`. No platform-wide provider fallback is used.
 
 ## Capability map
 
@@ -62,10 +62,42 @@ The orchestrator should own prompt versions, structured outputs, timeouts, retri
 ## Provider strategy
 
 - Supported direction: OpenAI, Anthropic Claude, and Google Gemini.
-- Tenant chooses a provider/model and supplies a key where BYO is enabled.
+- Tenant owners and tenant administrators manage only their current workspace at **Organization Settings → Integrations → AI Providers**.
+- Platform owners and platform administrators manage only the tenant deliberately opened in Platform Admin.
+- A user holding both role types receives authority from the current interface context; platform status never expands a tenant-context request.
+- Tenants may store multiple provider configurations, with at most one default.
+- Generation requires the default configuration to be enabled and successfully verified.
 - Maintain capability metadata rather than assuming every model supports the same context, structured output, moderation, or price.
 - Model changes require evaluation, cost review, and a decision-log entry.
 - A platform-managed key option may be introduced only with billing, quotas, and contractual controls.
+
+## Credential lifecycle and isolation
+
+1. The browser sends a candidate credential over HTTPS to an authenticated server route.
+2. The server derives the tenant from the current tenant workspace, or requires an explicit selected tenant in platform context.
+3. The server encrypts the key with AES-256-GCM, a unique 96-bit nonce, and `APP_ENCRYPTION_KEY`.
+4. The credential table has RLS enabled and all access revoked from `anon` and `authenticated`; only trusted server code may read ciphertext.
+5. Responses include provider, model, status, verification timestamps, and last four characters only. Ciphertext and plaintext are never returned.
+6. Replacing a key clears verification until the stored replacement is tested. Disabling or removing a provider prevents generation with it.
+
+Missing `tenant_can_manage_ai_credentials` means tenant administrators may manage their own keys. A platform administrator may set this tenant-scoped flag to `false`, making the tenant screen read-only without changing platform-context authority.
+
+Connection tests use the selected provider/model and return normalized error codes. Logs and audit records contain tenant, actor, role, context, provider, model, action, success, and safe error codes—never credential material.
+
+## Administrator workflows
+
+- **Tenant:** Organization Settings → Integrations → AI Providers. The server derives the current tenant from the authenticated owner/admin membership and ignores platform authority in this context.
+- **Platform:** Platform Admin → Tenants → selected tenant → AI Configuration. Every request includes the deliberately selected tenant and separately requires a platform owner/admin role.
+- **Provisioning:** the tenant wizard can enable tenant-managed AI, defer secure platform configuration until immediately after creation, or disable AI. Credentials are never collected in provisioning summaries, emails, or URLs.
+- **First Hour Experience:** the dashboard AI Quick Start checks for an enabled, verified default. Administrators can configure and return to Quick Start; other users receive the unavailable message; Skip for Now leaves all other onboarding progress unchanged.
+
+### Operations and incident response
+
+- Configure `APP_ENCRYPTION_KEY` and `SUPABASE_SERVICE_ROLE_KEY` as server-only secrets in every runtime environment.
+- Keep `APP_ENCRYPTION_KEY` stable; rotating it requires decrypting and re-encrypting every stored credential under a controlled migration.
+- If the encryption key is lost or suspected compromised, disable tenant AI generation, rotate the server secret, mark configurations as requiring replacement, notify affected tenant administrators, and require new provider keys.
+- If a tenant provider key is suspected compromised, disable that provider, revoke it at the provider, replace it in UpNexx, test the stored replacement, and review tenant audit/usage records.
+- Never paste provider credentials into source, tickets, logs, documentation, screenshots, or browser-visible environment variables.
 
 ## Creator generation workflow
 
@@ -192,8 +224,9 @@ Track provider, model, input/output tokens where available, estimated provider c
 
 ## Known risks and gaps
 
-- Direct provider code is duplicated in one route rather than a formal adapter layer.
-- Google generation support must be verified end to end.
+- Live provider verification and generation must be validated against staging provider accounts.
+- The current tenant workspace resolver selects the active tenant membership supplied by the application shell; a future multi-workspace selector must preserve the same server-derived context.
+- Provisioning’s “configure securely after creation” option opens the selected tenant’s AI screen; it intentionally does not place an API key input inside the general provisioning form.
 - No ingestion worker, citation interface, prompt registry, moderation layer, or evaluation harness.
 - Credit metering is partial and needs concurrency/idempotency validation.
 - AI privacy terms and provider data-processing settings are unapproved.

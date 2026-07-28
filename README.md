@@ -91,6 +91,10 @@ Earlier specifications and build plans remain in `docs` as historical or detaile
 
 The application is Vercel compatible but no production deployment is documented as complete. The intended product domain is `upnexx.net`; `www`, `app`, tenant subdomains, Cloudflare DNS, SSL, preview environments, monitoring, backups, and rollback must be validated through the [deployment guide](docs/13_Deployment_and_Environment_Setup.md).
 
+## Production data policy
+
+Production dashboards never display fabricated business metrics, sample tenants, fake activity, or generated chart values. Dashboard summaries are scoped to the authenticated tenant and loaded from Supabase. When records or instrumentation do not exist, UpNexx shows contextual empty states and onboarding actions instead of invented values. Platform-administrator summaries are calculated only from real platform records.
+
 ## Known limitations
 
 - Stripe checkout, customer portal, signed webhooks, and audience-payment operations are not implemented.

@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from "vitest";
-import { getTenantBySlug, normalizeHost, resolveTenantIdentifier } from "@/lib/tenant";
+import { normalizeHost, resolveTenantIdentifier } from "@/lib/tenant";
 
 describe("tenant resolution", () => {
   it("prioritizes the local path pattern", () => {
@@ -12,8 +12,6 @@ describe("tenant resolution", () => {
   });
   it("normalizes hosts and returns known tenants", () => {
     expect(normalizeHost(" AI-AT-WORK.UpNexx.com:3000 ")).toBe("ai-at-work.upnexx.com");
-    expect(getTenantBySlug("AI-AT-WORK")?.name).toBe("AI at Work");
-    expect(getTenantBySlug("missing")).toBeNull();
     expect(resolveTenantIdentifier({})).toBeNull();
   });
 });

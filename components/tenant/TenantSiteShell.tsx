@@ -2,7 +2,7 @@
 import { Bot, Menu, Search } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { Button, Container } from "@/components/ui";
-import type { Tenant } from "@/lib/mock/podcastos";
+import type { Tenant } from "@/lib/tenant-types";
 import { TenantBranding } from "@/components/tenant/TenantBranding";
 
 export function TenantSiteShell({ tenant, children }: { tenant: Tenant; children: React.ReactNode }) {
@@ -14,9 +14,7 @@ export function TenantSiteShell({ tenant, children }: { tenant: Tenant; children
   return (
     <TenantBranding tenant={tenant}>
     <div className="min-h-screen bg-brand-50">
-      <div className="bg-brand-900 py-2 text-center text-xs font-semibold text-brand-100">
-        Example community powered by UpNexx · Powered by Nexx Jenn Technologies
-      </div>
+      <div className="bg-brand-900 py-2 text-center text-xs font-semibold text-brand-100">Powered by UpNexx · Nexx Jenn Technologies</div>
       <header className="border-b border-brand-200 bg-white">
         <Container className="flex h-20 items-center justify-between gap-6">
           <Link href={base} className="font-display text-xl font-extrabold text-brand-900">{tenant.name}<span className="text-accent-600">.</span></Link>

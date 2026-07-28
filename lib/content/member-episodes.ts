@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 export type MemberEpisode = {
   id: string;
@@ -24,7 +25,8 @@ export async function getPublishedEpisodes(tenantSlug: string): Promise<MemberEp
     .maybeSingle();
   if (!tenant) return [];
 
-  const { data: episodes, error } = await admin
+  const supabase = await createClient();
+  const { data: episodes, error } = await supabase
     .from("episodes")
     .select("id,title,description,video_url,audio_url,publish_date,access_level,created_at")
     .eq("tenant_id", tenant.id)
@@ -50,10 +52,10 @@ export async function getPublishedEpisode(tenantSlug: string, episodeId: string)
   const episode = episodes.find((item) => item.id === episodeId);
   if (!episode) return { episode: null, episodes };
 
-  const admin = createAdminClient();
+  const supabase = await createClient();
   const [{ data: transcript }, { data: resources }] = await Promise.all([
-    admin.from("episode_transcripts").select("content").eq("episode_id", episodeId).eq("status", "published").maybeSingle(),
-    admin.from("episode_resources").select("title,url").eq("episode_id", episodeId).order("created_at")
+    supabase.from("episode_transcripts").select("content").eq("episode_id", episodeId).eq("status", "published").maybeSingle(),
+    supabase.from("episode_resources").select("title,url").eq("episode_id", episodeId).order("created_at")
   ]);
 
   return {
@@ -65,4 +67,3 @@ export async function getPublishedEpisode(tenantSlug: string, episodeId: string)
     episodes
   };
 }
-

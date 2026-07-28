@@ -19,6 +19,15 @@ function getEncryptionKey() {
   return key;
 }
 
+export function hasValidEncryptionConfiguration() {
+  try {
+    getEncryptionKey();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function encryptApiKey(apiKey: string) {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", getEncryptionKey(), iv);

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 import { Button, Container } from "@/components/ui";
-import { landingNav } from "@/lib/mock/podcastos";
+import { landingNav } from "@/lib/marketing";
 
 export function PublicNav() {
   const [open, setOpen] = useState(false);

@@ -11,7 +11,7 @@ export function DemoRequestForm() {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.currentTarget));
       const result = demoRequestSchema.safeParse(data);
-      setMessage(result.success ? "Thanks. This mock form is ready to connect to your CRM or email workflow." : result.error.issues[0].message);
+      setMessage(result.success ? "Thanks. Your request has been validated. Please contact the UpNexx team to continue." : result.error.issues[0].message);
     }}>
       <Field label="Name" htmlFor="name"><Input id="name" name="name" /></Field>
       <Field label="Work email" htmlFor="email"><Input id="email" name="email" type="email" /></Field>

@@ -57,7 +57,7 @@ Use platform environment settings or `.env.local`; never commit actual values. T
 ## Supabase
 
 1. Create/select the correct project.
-2. Apply migrations `0001` through `0006` in order.
+2. Apply migrations `0001` through `0008` in order.
 3. Verify extensions, tables, functions, RLS, policies, indexes, and `tenant-assets`.
 4. Configure auth site URL and allowed redirect URLs for local, preview, and production.
 5. Reconcile generated TypeScript types.
@@ -69,7 +69,7 @@ Do not expose the service-role key to browser code.
 
 - **Stripe:** configure only after billing model approval; SDK/routes/webhooks are not implemented.
 - **Resend:** configure domain, sender, and templates after email integration exists.
-- **AI providers:** tenant-owned keys are entered through server-backed settings; never add customer keys to documentation.
+- **AI providers:** tenant-owned keys are entered at Organization Settings → Integrations → AI Providers; never add customer keys to environment variables or documentation.
 - **Sentry/PostHog:** recommended, not installed.
 
 ## Commands

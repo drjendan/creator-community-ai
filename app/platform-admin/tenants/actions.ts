@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { databaseErrorMessage, isMissingEditableMembershipMetadata } from "@/lib/supabase/error";
+import { withoutEditableMembershipMetadata } from "@/lib/membership-plan-compat";
 import { featureCatalog, membershipTemplateIds, membershipTemplates, platformPlanSlugs, tenantTypes } from "@/lib/subscriptions";
 
 const tenantSchema = z.object({
@@ -20,7 +22,10 @@ const tenantSchema = z.object({
   customPrice: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   aiCreditAllowance: z.coerce.number().int().min(0).max(100000000),
   features: z.array(z.string()),
-  membershipTemplate: z.enum(membershipTemplateIds)
+  membershipTemplate: z.enum(membershipTemplateIds),
+  recommendedMembershipTemplate: z.enum(membershipTemplateIds),
+  membershipTemplateOverridden: z.enum(["true", "false"]),
+  aiAccessMode: z.enum(["tenant_adds_key", "configure_after_creation", "disabled"])
 });
 
 const platformRoles = new Set(["platform_owner", "platform_admin"]);
@@ -44,7 +49,10 @@ export async function createTenant(formData: FormData) {
     customPrice: formData.get("customPrice") ?? "",
     aiCreditAllowance: formData.get("aiCreditAllowance") ?? 0,
     features: String(formData.get("features") ?? "").split(",").filter(Boolean),
-    membershipTemplate: formData.get("membershipTemplate")
+    membershipTemplate: formData.get("membershipTemplate"),
+    recommendedMembershipTemplate: formData.get("recommendedMembershipTemplate"),
+    membershipTemplateOverridden: formData.get("membershipTemplateOverridden"),
+    aiAccessMode: formData.get("aiAccessMode")
   });
 
   if (!parsed.success) {
@@ -65,6 +73,8 @@ export async function createTenant(formData: FormData) {
   const input = parsed.data;
   let resultMessage = "";
   let resultType: "success" | "error" = "success";
+  let createdTenantId: string | null = null;
+  let membershipMetadataDeferred = false;
 
   try {
     const { data: tenant, error: tenantError } = await admin
@@ -80,6 +90,7 @@ export async function createTenant(formData: FormData) {
       .single();
 
     if (tenantError) throw tenantError;
+    createdTenantId = tenant.id;
 
     const { error: brandingError } = await admin.from("tenant_branding").upsert({
       tenant_id: tenant.id,
@@ -129,7 +140,7 @@ export async function createTenant(formData: FormData) {
     if (membershipError) throw membershipError;
 
     const { error: aiSettingsError } = await admin.from("tenant_ai_settings").upsert(
-      { tenant_id: tenant.id, enabled: false, updated_at: new Date().toISOString() },
+      { tenant_id: tenant.id, enabled: input.aiAccessMode !== "disabled", updated_at: new Date().toISOString() },
       { onConflict: "tenant_id" }
     );
     if (aiSettingsError) throw aiSettingsError;
@@ -156,13 +167,25 @@ export async function createTenant(formData: FormData) {
     if (subscriptionError) throw subscriptionError;
 
     const allowedFeatures = new Set(featureCatalog.map((feature) => feature.key));
-    const entitlements = input.features.filter((key) => allowedFeatures.has(key as never)).map((featureKey) => ({
+    const entitlements = input.features
+      .filter((key) => allowedFeatures.has(key as never))
+      .filter((key) => input.aiAccessMode !== "disabled" || key !== "creator_ai_studio")
+      .map((featureKey) => ({
       tenant_id: tenant.id,
       feature_key: featureKey,
       enabled: true,
       source: "override",
       updated_at: now.toISOString()
     }));
+    if (input.aiAccessMode === "disabled") {
+      entitlements.push({
+        tenant_id: tenant.id,
+        feature_key: "creator_ai_studio",
+        enabled: false,
+        source: "override",
+        updated_at: now.toISOString()
+      });
+    }
     if (entitlements.length) {
       const { error: entitlementError } = await admin.from("tenant_feature_entitlements").upsert(entitlements, { onConflict: "tenant_id,feature_key" });
       if (entitlementError) throw entitlementError;
@@ -185,11 +208,39 @@ export async function createTenant(formData: FormData) {
         visibility: "public",
         status: "active",
         sort_order: membershipPlan.sortOrder,
+        display_order: membershipPlan.sortOrder,
+        is_active: true,
+        is_editable: true,
+        created_from_template: true,
+        template_key: input.membershipTemplate,
+        benefits: [],
+        color: null,
         access_rules: {}
       }));
       const { error: membershipPlansError } = await admin.from("tenant_membership_plans").insert(planRows);
-      if (membershipPlansError) throw membershipPlansError;
+      if (membershipPlansError && isMissingEditableMembershipMetadata(membershipPlansError)) {
+        membershipMetadataDeferred = true;
+        const legacyPlanRows = planRows.map(withoutEditableMembershipMetadata);
+        const { error: legacyMembershipPlansError } = await admin.from("tenant_membership_plans").insert(legacyPlanRows);
+        if (legacyMembershipPlansError) throw legacyMembershipPlansError;
+      } else if (membershipPlansError) {
+        throw membershipPlansError;
+      }
     }
+    const { error: membershipSetupError } = await admin.from("feature_flags").upsert(
+      {
+        tenant_id: tenant.id,
+        key: "membership_setup_status",
+        enabled: template.plans.length > 0,
+        configuration: {
+          status: template.plans.length > 0 ? "starter_plans_created" : "not_started",
+          template_key: input.membershipTemplate
+        },
+        updated_at: now.toISOString()
+      },
+      { onConflict: "tenant_id,key" }
+    );
+    if (membershipSetupError) throw membershipSetupError;
 
     if (complimentary) {
       const { error: complimentaryError } = await admin.from("feature_flags").upsert(
@@ -209,6 +260,18 @@ export async function createTenant(formData: FormData) {
       if (complimentaryError) throw complimentaryError;
     }
 
+    const { error: credentialPolicyError } = await admin.from("feature_flags").upsert(
+      {
+        tenant_id: tenant.id,
+        key: "tenant_can_manage_ai_credentials",
+        enabled: input.aiAccessMode !== "disabled",
+        configuration: {},
+        updated_at: now.toISOString()
+      },
+      { onConflict: "tenant_id,key" }
+    );
+    if (credentialPolicyError) throw credentialPolicyError;
+
     await admin.from("audit_logs").insert({
       tenant_id: tenant.id,
       user_id: user.id,
@@ -221,17 +284,28 @@ export async function createTenant(formData: FormData) {
         platform_plan: input.planSlug,
         complimentary,
         membership_template: input.membershipTemplate,
+        recommended_membership_template: input.recommendedMembershipTemplate,
+        membership_template_recommendation_accepted: input.membershipTemplate === input.recommendedMembershipTemplate,
+        membership_template_overridden: input.membershipTemplateOverridden === "true",
         ai_credit_allowance: input.aiCreditAllowance || plan.ai_credit_allowance,
         features: input.features,
-        invitation_sent: invitationSent
+        invitation_sent: invitationSent,
+        ai_access_mode: input.aiAccessMode
       }
     });
 
     resultMessage = invitationSent
       ? `${input.name} was created and an owner invitation was sent to ${input.ownerEmail}.`
       : `${input.name} was created and ${input.ownerEmail} was assigned as its owner.`;
+    if (membershipMetadataDeferred) {
+      resultMessage += " Starter memberships were created with legacy fields; apply database migration 0008 to enable template metadata, colors, and benefits.";
+    }
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = databaseErrorMessage(error);
+    if (createdTenantId) {
+      await admin.from("tenants").delete().eq("id", createdTenantId);
+      createdTenantId = null;
+    }
     const keyProblem = /not_admin|user not allowed|row-level security|permission denied/i.test(detail);
     resultMessage = keyProblem
       ? "The server admin key is not authorized. Add the Supabase secret/service-role key to .env.local and restart UpNexx."
@@ -239,6 +313,9 @@ export async function createTenant(formData: FormData) {
     resultType = "error";
   }
 
+  if (resultType === "success" && createdTenantId && parsed.data.aiAccessMode === "configure_after_creation") {
+    redirect(`/platform-admin/tenants/${createdTenantId}?setupAI=1`);
+  }
   redirect(destination(resultMessage, resultType));
 }
 
@@ -251,34 +328,63 @@ const updateSchema = z.object({
   subscriptionStatus: z.enum(["trialing", "active", "past_due", "canceled"]),
   billingFrequency: z.enum(["monthly", "annual", "custom", "none"]),
   aiCreditAllowance: z.coerce.number().int().min(0),
-  customPrice: z.union([z.coerce.number().min(0), z.literal("")]).optional()
+  customPrice: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
+  tenantCanManageAiCredentials: z.boolean()
 });
 
 export async function updateTenant(formData: FormData) {
-  const parsed = updateSchema.safeParse(Object.fromEntries(formData));
+  const parsed = updateSchema.safeParse({
+    ...Object.fromEntries(formData),
+    tenantCanManageAiCredentials: formData.get("tenantCanManageAiCredentials") === "on"
+  });
   if (!parsed.success) redirect(destination("Check the tenant subscription fields.", "error"));
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !platformRoles.has(user.app_metadata?.platform_role)) redirect(destination("Platform administrator access is required.", "error"));
   const admin = createAdminClient();
   const input = parsed.data;
+  const { data: previousCredentialPolicy } = await admin
+    .from("feature_flags")
+    .select("enabled")
+    .eq("tenant_id", input.tenantId)
+    .eq("key", "tenant_can_manage_ai_credentials")
+    .maybeSingle();
   const { data: plan, error: planError } = await admin.from("platform_plans").select("id").eq("slug", input.planSlug).single();
   if (planError || !plan) redirect(destination("The selected platform plan is unavailable.", "error"));
-  const [{ error: tenantError }, { error: subscriptionError }] = await Promise.all([
+  const [{ error: tenantError }, { error: subscriptionError }, { error: aiCredentialPolicyError }] = await Promise.all([
     admin.from("tenants").update({ name: input.name, tenant_type: input.tenantType, status: input.status, updated_at: new Date().toISOString() }).eq("id", input.tenantId),
     admin.from("tenant_subscriptions").upsert({
       tenant_id: input.tenantId, plan_id: plan.id, status: input.subscriptionStatus,
       billing_frequency: input.billingFrequency, custom_price: input.customPrice === "" ? null : input.customPrice,
       complimentary: input.planSlug === "complimentary", ai_credit_allowance: input.aiCreditAllowance,
       updated_at: new Date().toISOString()
-    }, { onConflict: "tenant_id" })
+    }, { onConflict: "tenant_id" }),
+    admin.from("feature_flags").upsert({
+      tenant_id: input.tenantId,
+      key: "tenant_can_manage_ai_credentials",
+      enabled: input.tenantCanManageAiCredentials,
+      configuration: {},
+      updated_at: new Date().toISOString()
+    }, { onConflict: "tenant_id,key" })
   ]);
-  if (tenantError || subscriptionError) redirect(destination(`Tenant update failed: ${(tenantError ?? subscriptionError)?.message}`, "error"));
+  if (tenantError || subscriptionError || aiCredentialPolicyError) redirect(destination(`Tenant update failed: ${(tenantError ?? subscriptionError ?? aiCredentialPolicyError)?.message}`, "error"));
   await admin.from("audit_logs").insert({
     tenant_id: input.tenantId, user_id: user.id, action: "platform.tenant.updated",
     entity_type: "tenant", entity_id: input.tenantId,
-    metadata: { tenant_type: input.tenantType, platform_plan: input.planSlug, ai_credit_allowance: input.aiCreditAllowance }
+    metadata: { tenant_type: input.tenantType, platform_plan: input.planSlug, ai_credit_allowance: input.aiCreditAllowance, tenant_can_manage_ai_credentials: input.tenantCanManageAiCredentials }
   });
+  if (previousCredentialPolicy?.enabled !== input.tenantCanManageAiCredentials) {
+    await admin.from("audit_logs").insert({
+      tenant_id: input.tenantId,
+      user_id: user.id,
+      action: "tenant.ai_credential_management_permission.changed",
+      entity_type: "feature_flag",
+      metadata: {
+        acting_role: String(user.app_metadata?.platform_role),
+        enabled: input.tenantCanManageAiCredentials
+      }
+    });
+  }
   redirect(destination(`${input.name} was updated.`, "success"));
 }
 

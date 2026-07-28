@@ -14,7 +14,7 @@
 
 ## A. Platform-level tenant onboarding
 
-The platform-admin wizard currently supports organization, platform subscription, features, branding, audience membership template, administrator invitation, and review. Custom-domain operations, email delivery, billing execution, AI training, and launch review remain partial or manual.
+The platform-admin wizard currently supports organization, platform subscription, features, branding, recommended editable audience membership templates, administrator invitation, and review. The nonprofit and faith-based template creates independent Community Member, Supporter, and Leadership starter plans. Selecting Custom creates no plans and records membership setup as not started. Custom-domain operations, email delivery, billing execution, AI training, and launch review remain partial or manual.
 
 | Stage | Activities | Responsible | Timing | Success criterion |
 | --- | --- | --- | --- | --- |

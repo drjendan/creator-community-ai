@@ -1,5 +1,3 @@
-﻿import { tenants, type Tenant } from "@/lib/mock/podcastos";
-
 export type TenantSource = "path" | "subdomain" | "custom-domain";
 
 export interface TenantResolution {
@@ -18,7 +16,6 @@ export function resolveTenantIdentifier(input: {
 }): TenantResolution | null {
   const pathMatch = input.pathname?.match(/^\/demo\/([a-z0-9-]+)(?:\/|$)/i);
   if (pathMatch) return { slug: pathMatch[1].toLowerCase(), source: "path" };
-
   if (!input.host) return null;
   const host = normalizeHost(input.host);
   const root = normalizeHost(input.rootDomain ?? "upnexx.com");
@@ -28,8 +25,3 @@ export function resolveTenantIdentifier(input: {
   }
   return { slug: host, source: "custom-domain" };
 }
-
-export function getTenantBySlug(slug: string): Tenant | null {
-  return tenants.find((tenant) => tenant.slug === slug.toLowerCase()) ?? null;
-}
-

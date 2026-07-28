@@ -1,11 +1,12 @@
 ﻿import { notFound } from "next/navigation";
-import { ModulePlaceholder } from "@/components/dashboard/ModulePlaceholder";
+import { Settings, UserPlus, WalletCards } from "lucide-react";
+import { EmptyState } from "@/components/feedback/EmptyState";
 import { MembershipPlanManager } from "@/components/dashboard/MembershipPlanManager";
 
-const modules: Record<string, { title: string; description: string }> = {
-  branding: { title: "Branding", description: "Manage tenant colors, logos, imagery, and member-facing language." },
-  team: { title: "Team", description: "Invite administrators and assign tenant-scoped roles." },
-  billing: { title: "Billing", description: "Review the tenant's UpNexx subscription and billing status." }
+const modules: Record<string, { title: string; description: string; icon: typeof Settings }> = {
+  branding: { title: "Branding", description: "No custom branding has been added yet.", icon: Settings },
+  team: { title: "Team", description: "No additional team members have been invited yet.", icon: UserPlus },
+  billing: { title: "Billing", description: "No billing activity is available.", icon: WalletCards }
 };
 
 export default async function DashboardSectionPage({ params }: { params: Promise<{ section: string }> }) {
@@ -13,6 +14,6 @@ export default async function DashboardSectionPage({ params }: { params: Promise
   if (section === "memberships") return <MembershipPlanManager />;
   const selectedModule = modules[section];
   if (!selectedModule) notFound();
-  return <ModulePlaceholder {...selectedModule} />;
+  return <div className="space-y-5"><h1 className="font-display text-3xl font-extrabold text-brand-900">{selectedModule.title}</h1><EmptyState title={selectedModule.description} description="This area will display information for the current organization when it is available." icon={selectedModule.icon} /></div>;
 }
 
