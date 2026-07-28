@@ -1,0 +1,53 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import {
+  canConsumeCredits, creditsRemaining, featureCatalog, membershipTemplates,
+  platformPlanSlugs, tenantTypes, terminologyFor
+} from "@/lib/subscriptions";
+
+describe("tenant and subscription configuration", () => {
+  it("supports every required tenant and platform plan type", () => {
+    expect(tenantTypes).toEqual(expect.arrayContaining(["podcaster", "educator", "coach", "church_ministry", "therapist_wellness", "association", "nonprofit"]));
+    expect(platformPlanSlugs).toEqual(["creator", "growth", "professional", "enterprise", "trial", "complimentary", "custom"]);
+  });
+  it("changes terminology without creating separate applications", () => {
+    expect(terminologyFor("educator").audience).toBe("Learners");
+    expect(terminologyFor("coach").audience).toBe("Clients");
+    expect(terminologyFor("podcaster").primary).toBe("Podcast");
+  });
+  it("provides all audience membership templates", () => {
+    expect(Object.keys(membershipTemplates)).toHaveLength(7);
+    expect(membershipTemplates.free_premium.plans.map((plan) => plan.name)).toEqual(["Free", "Premium"]);
+    expect(membershipTemplates.free_premium_vip.plans).toHaveLength(3);
+    expect(membershipTemplates.custom.plans).toEqual([]);
+  });
+});
+
+describe("AI credits and feature controls", () => {
+  it("blocks usage that exceeds an allowance", () => {
+    expect(creditsRemaining(100, 25)).toBe(75);
+    expect(creditsRemaining(100, 120)).toBe(0);
+    expect(canConsumeCredits(100, 95, 5)).toBe(true);
+    expect(canConsumeCredits(100, 95, 6)).toBe(false);
+  });
+  it("registers phased AI features independently", () => {
+    const keys = featureCatalog.map((feature) => feature.key);
+    expect(keys).toEqual(expect.arrayContaining(["creator_ai_studio", "member_ai_assistant", "recommendations", "administrator_ai_insights"]));
+  });
+});
+
+describe("migration security contract", () => {
+  const migration = readFileSync("supabase/migrations/0006_subscription_membership_ai_foundation.sql", "utf8");
+  it("enables RLS and creates server-side entitlement checks", () => {
+    expect(migration).toContain("enable row level security");
+    expect(migration).toContain("public.has_content_access");
+    expect(migration).toContain("public.has_active_audience_subscription");
+    expect(migration).toContain("authorized published episodes");
+    expect(migration).toContain("members read own recommendations");
+  });
+  it("keeps platform and audience subscriptions as separate tables", () => {
+    expect(migration).toContain("alter table public.tenant_subscriptions");
+    expect(migration).toContain("alter table public.tenant_membership_plans");
+    expect(migration).toContain("alter table public.member_subscriptions");
+  });
+});

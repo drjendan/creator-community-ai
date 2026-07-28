@@ -1,0 +1,18 @@
+import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { updateTenant } from "../actions";
+import { Button, Card, Field, Input, Select } from "@/components/ui";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { platformPlanSlugs, tenantTypeLabels, tenantTypes } from "@/lib/subscriptions";
+
+export default async function EditTenantPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const admin = createAdminClient();
+  const [{ data: tenant }, { data: subscription }] = await Promise.all([
+    admin.from("tenants").select("id,name,slug,status,tenant_type").eq("id", id).maybeSingle(),
+    admin.from("tenant_subscriptions").select("status,billing_frequency,custom_price,ai_credit_allowance,platform_plans(slug)").eq("tenant_id", id).maybeSingle()
+  ]);
+  if (!tenant) notFound();
+  const relatedPlan = subscription?.platform_plans as unknown as { slug?: string } | null;
+  return <div className="mx-auto max-w-4xl space-y-6"><Button href="/platform-admin/tenants" variant="secondary"><ArrowLeft className="h-4 w-4" />All tenants</Button><div><p className="text-xs font-bold uppercase tracking-wide text-accent-700">Tenant management</p><h1 className="mt-2 font-display text-3xl font-extrabold text-brand-900">Edit {tenant.name}</h1><p className="mt-2 text-sm text-brand-500">{tenant.slug}</p></div><Card><form action={updateTenant} className="grid gap-5 md:grid-cols-2"><input type="hidden" name="tenantId" value={tenant.id} /><Field label="Organization name" htmlFor="edit-name"><Input id="edit-name" name="name" defaultValue={tenant.name} required /></Field><Field label="Business type" htmlFor="edit-type"><Select id="edit-type" name="tenantType" defaultValue={tenant.tenant_type ?? "podcaster"}>{tenantTypes.map((type) => <option key={type} value={type}>{tenantTypeLabels[type]}</option>)}</Select></Field><Field label="Tenant status" htmlFor="edit-tenant-status"><Select id="edit-tenant-status" name="status" defaultValue={tenant.status}><option value="active">Active</option><option value="suspended">Suspended</option></Select></Field><Field label="Platform plan" htmlFor="edit-plan"><Select id="edit-plan" name="planSlug" defaultValue={relatedPlan?.slug ?? "creator"}>{platformPlanSlugs.map((plan) => <option key={plan} value={plan}>{plan[0].toUpperCase() + plan.slice(1)}</option>)}</Select></Field><Field label="Subscription status" htmlFor="edit-subscription-status"><Select id="edit-subscription-status" name="subscriptionStatus" defaultValue={subscription?.status ?? "active"}><option value="trialing">Trialing</option><option value="active">Active</option><option value="past_due">Past due</option><option value="canceled">Canceled</option></Select></Field><Field label="Billing frequency" htmlFor="edit-frequency"><Select id="edit-frequency" name="billingFrequency" defaultValue={subscription?.billing_frequency ?? "monthly"}><option value="monthly">Monthly</option><option value="annual">Annual</option><option value="custom">Custom</option><option value="none">None</option></Select></Field><Field label="Custom price" htmlFor="edit-price"><Input id="edit-price" name="customPrice" type="number" min="0" step="0.01" defaultValue={subscription?.custom_price ?? ""} /></Field><Field label="Monthly AI credits" htmlFor="edit-credits"><Input id="edit-credits" name="aiCreditAllowance" type="number" min="0" defaultValue={subscription?.ai_credit_allowance ?? 0} required /></Field><div className="md:col-span-2"><Button type="submit">Save tenant subscription</Button></div></form></Card></div>;
+}

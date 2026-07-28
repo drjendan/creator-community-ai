@@ -8,12 +8,12 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
 export type ButtonSize = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors " +
+  "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 " +
   "focus-visible:ring-offset-brand-50 disabled:cursor-not-allowed disabled:opacity-50";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "bg-brand-900 text-white hover:bg-brand-700",
+  primary: "upnexx-gradient text-white shadow-sm hover:-translate-y-0.5 hover:shadow-glow",
   secondary: "border border-brand-900/25 text-brand-900 hover:border-brand-900 hover:bg-brand-50",
   ghost: "text-brand-700 hover:bg-brand-100",
   destructive: "bg-danger text-white hover:bg-danger-strong"

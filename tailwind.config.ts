@@ -5,59 +5,38 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Warm, editorial neutral scale (spec §9.1 / §14). Tenant themes override
-        // --brand / --accent CSS variables at runtime; these are the platform
-        // defaults and the fallback palette.
         brand: {
-          50: "#faf7f2",
-          100: "#f1ebe1",
-          200: "#e2d6c5",
-          300: "#cdb99f",
-          400: "#a98a67",
-          500: "#7b5d45",
-          600: "#654a37",
-          700: "#513b2c",
-          800: "#372820",
-          900: "#241b14"
+          50: "#F8FAFC", 100: "#F1F5F9", 200: "#CBD5E1", 300: "#94A3B8",
+          400: "#64748B", 500: "#475569", 600: "#334155", 700: "#1E293B",
+          800: "#101936", 900: "#08112B", 950: "#03071E"
         },
         accent: {
-          50: "#fbf3e6",
-          100: "#f6e4c8",
-          200: "#eecb98",
-          300: "#e0ad63",
-          400: "#cd9040",
-          500: "#b4762a",
-          600: "#96601f",
-          700: "#734917",
-          800: "#513412",
-          900: "#33210c"
+          50: "#F5F3FF", 100: "#EDE9FE", 200: "#DDD6FE", 300: "#C4B5FD",
+          400: "#A78BFA", 500: "#8B5CF6", 600: "#7C3AED", 700: "#6D28D9",
+          800: "#5B21B6", 900: "#4C1D95"
         },
-        // Semantic status colors (accessible on the warm background).
-        success: { soft: "#e4eee6", DEFAULT: "#3f7d52", strong: "#2c5c3b" },
-        warning: { soft: "#f7ecd2", DEFAULT: "#a9791d", strong: "#7c5710" },
-        danger: { soft: "#f6e0e0", DEFAULT: "#b0413e", strong: "#832f2d" },
-        info: { soft: "#e5ebf4", DEFAULT: "#3f5c86", strong: "#2c4361" }
+        highlight: {
+          50: "#ECFEFF", 100: "#CFFAFE", 200: "#A5F3FC", 300: "#67E8F9",
+          400: "#22D3EE", 500: "#06B6D4", 600: "#0891B2", 700: "#0E7490",
+          800: "#155E75", 900: "#164E63"
+        },
+        success: { soft: "#F0FDF4", DEFAULT: "#22C55E", strong: "#166534" },
+        warning: { soft: "#FFFBEB", DEFAULT: "#F59E0B", strong: "#92400E" },
+        danger: { soft: "#FEF2F2", DEFAULT: "#EF4444", strong: "#991B1B" },
+        info: { soft: "#ECFEFF", DEFAULT: "#06B6D4", strong: "#155E75" }
       },
       fontFamily: {
-        display: ["var(--font-display)", "Georgia", "serif"],
+        display: ["var(--font-display)", "system-ui", "sans-serif"],
         body: ["var(--font-body)", "system-ui", "sans-serif"]
       },
-      borderRadius: {
-        sm: "0.5rem",
-        DEFAULT: "0.75rem",
-        lg: "1rem",
-        xl: "1.5rem",
-        "2xl": "2rem"
-      },
+      borderRadius: { sm: "0.5rem", DEFAULT: "0.75rem", lg: "1rem", xl: "1.5rem", "2xl": "2rem" },
       boxShadow: {
-        // Restrained shadows per §9.1 — "limited rounded cards and restrained shadows".
-        card: "0 1px 2px rgba(36,27,20,0.04), 0 2px 8px rgba(36,27,20,0.06)",
-        lift: "0 10px 30px -12px rgba(36,27,20,0.22)",
-        pop: "0 24px 60px -24px rgba(36,27,20,0.28)"
+        card: "0 1px 2px rgba(3,7,30,.05), 0 10px 28px rgba(8,17,43,.08)",
+        lift: "0 18px 42px -18px rgba(76,29,149,.34)",
+        pop: "0 32px 80px -30px rgba(3,7,30,.5)",
+        glow: "0 14px 38px -16px rgba(124,58,237,.72)"
       },
-      maxWidth: {
-        content: "72rem"
-      }
+      maxWidth: { content: "72rem" }
     }
   },
   plugins: []

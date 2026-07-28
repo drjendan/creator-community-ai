@@ -3,8 +3,54 @@
 @tailwind utilities;
 
 :root {
-  --background: #faf7f2;
-  --foreground: #241b14;
+  --upnexx-midnight: #03071e;
+  --upnexx-navy: #08112b;
+  --upnexx-surface: #101936;
+  --upnexx-violet: #7c3aed;
+  --upnexx-purple: #9333ea;
+  --upnexx-cyan: #06b6d4;
+  --upnexx-cyan-light: #22d3ee;
+  --upnexx-lavender: #c4b5fd;
+  --upnexx-white: #f8fafc;
+  --upnexx-gray-light: #cbd5e1;
+  --upnexx-gray-muted: #94a3b8;
+  --upnexx-border: #312e81;
+  --upnexx-success: #22c55e;
+  --upnexx-warning: #f59e0b;
+  --upnexx-error: #ef4444;
+  --upnexx-gradient: linear-gradient(135deg, #06b6d4 0%, #7c3aed 55%, #9333ea 100%);
+  --background: #f8fafc;
+  --foreground: #08112b;
+  --font-display: "Manrope";
+  --font-body: "Inter";
+}
+
+html { scroll-behavior: smooth; }
+::selection { background: #22d3ee; color: #03071e; }
+.grid-fade {
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.08) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+.upnexx-hero {
+  background:
+    radial-gradient(circle at 80% 35%, rgba(124, 58, 237, 0.35), transparent 38%),
+    radial-gradient(circle at 65% 75%, rgba(6, 182, 212, 0.12), transparent 35%),
+    linear-gradient(135deg, #03071e 0%, #08112b 55%, #160b3d 100%);
+}
+.upnexx-gradient { background-image: var(--upnexx-gradient); }
+.upnexx-gradient-text {
+  background-image: var(--upnexx-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.upnexx-focus {
+  outline: none;
+}
+.upnexx-focus:focus-visible {
+  box-shadow: 0 0 0 3px var(--upnexx-midnight), 0 0 0 5px var(--upnexx-cyan-light);
 }
 
 body {

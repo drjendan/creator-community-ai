@@ -1,57 +1,43 @@
-# Design System
+# UpNexx design system
 
-The shared visual foundation for Creator Community AI. Build every screen from
-these tokens and primitives so patterns stay consistent (spec §14, §24). This is
-the platform default palette; **tenant themes override `--brand` / `--accent` at
-runtime** — never hardcode a tenant's colors into a component.
+UpNexx is the intelligent content, learning, and community platform from Nexx Jenn Technologies. The product has its own midnight, violet, purple, and cyan identity; the Nexx Jenn Technologies identity remains reserved for parent-company attribution.
 
-## Tokens (`tailwind.config.ts`)
+## Brand architecture
 
-### Color
-- **`brand-50…900`** — warm neutral scale (paper → ink). Backgrounds, text, borders.
-  - Backgrounds: `brand-50` (page), `white` (cards). Borders: `brand-200`.
-  - Text: `brand-900` (headings), `brand-700` (body), `brand-500` (muted), `brand-400` (placeholder).
-- **`accent-50…900`** — warm gold accent. Eyebrows, links, focus rings, small highlights. Use sparingly.
-- **Semantic** — `success`, `warning`, `danger`, `info`, each with `-soft` (bg) / `DEFAULT` / `-strong` (text).
+- Product: UpNexx
+- Descriptor: The Intelligent Content, Learning & Community Platform
+- Parent company: Nexx Jenn Technologies
+- Attribution: Powered by Nexx Jenn Technologies
 
-### Type
-- **Display**: `font-display` (Fraunces) for headings only.
-- **Body**: `font-body` (Instrument Sans) for everything else.
-- Heading sizes are controlled: **h1 caps at `text-5xl`**, h2 at `text-3xl`. Avoid oversized type (§9.1).
+The UpNexx mark is a U-shaped monogram whose right stroke becomes an upward arrow. It represents growth, progress, and what comes next. Do not use the Nexx Jenn gear as the UpNexx product mark.
 
-### Radius & shadow
-- Radius: `rounded-lg` (controls), `rounded-2xl` (cards). Shadows: `shadow-card` (default), `shadow-lift`, `shadow-pop`. Keep shadows restrained (§9.1).
-- Layout width: `max-w-content` (72rem) via `<Container>`.
+## Color tokens
 
-## Primitives (`components/ui`)
+| Token | Value | Primary use |
+| --- | --- | --- |
+| `--upnexx-midnight` | `#03071E` | Marketing backgrounds |
+| `--upnexx-navy` | `#08112B` | Sidebar, headings, deep surfaces |
+| `--upnexx-surface` | `#101936` | Elevated dark surfaces |
+| `--upnexx-violet` | `#7C3AED` | Primary actions and active states |
+| `--upnexx-purple` | `#9333EA` | Gradient endpoint |
+| `--upnexx-cyan` | `#06B6D4` | Links and selective highlights |
+| `--upnexx-cyan-light` | `#22D3EE` | Focus and dark-surface accents |
+| `--upnexx-lavender` | `#C4B5FD` | Supporting surfaces and text |
+| `--upnexx-white` | `#F8FAFC` | Light canvas and dark-surface text |
+| `--upnexx-gray-light` | `#CBD5E1` | Borders and secondary text |
+| `--upnexx-gray-muted` | `#94A3B8` | Muted text |
+| `--upnexx-border` | `#312E81` | Dark-theme borders |
+| `--upnexx-success` | `#22C55E` | Success only |
+| `--upnexx-warning` | `#F59E0B` | Warnings only |
+| `--upnexx-error` | `#EF4444` | Errors and destructive actions |
 
-Import from `@/components/ui`.
+The primary gradient is `linear-gradient(135deg, #06B6D4 0%, #7C3AED 55%, #9333EA 100%)`.
 
-| Component | Purpose | Notes |
-|---|---|---|
-| `Button` | Actions | `variant`: primary \| secondary \| ghost \| destructive · `size`: sm \| md \| lg · pass `href` to render a Next `<Link>` |
-| `Card`, `CardHeader`, `CardTitle` | Content containers | `padded={false}` to opt out of default padding |
-| `Badge` | Status / labels | `tone`: neutral \| brand \| accent \| success \| warning \| danger \| info |
-| `Container` | Page column | Centered, `max-w-content`, responsive gutters |
-| `SectionHeading` | Eyebrow + heading + subtitle | `as="h1"` for page titles, `align="center"` optional |
-| `Input`, `Textarea`, `Select` | Form controls | `invalid` prop wires `aria-invalid` + danger border |
-| `Field`, `Label` | Form field wrapper | Wires label ↔ control, hint/error text with aria |
+## Usage
 
-### Accessibility baseline (§14)
-- All interactive elements show a visible focus ring (`focus-visible:ring-accent-500`).
-- Form controls use `Field` for label association and error messaging.
-- Buttons/links are semantic elements; keyboard operable by default.
-
-## Usage example
-
-```tsx
-import { Container, SectionHeading, Card, Button, Badge } from "@/components/ui";
-
-<Container>
-  <SectionHeading eyebrow="Podcast" title="Latest episodes" />
-  <Card>
-    <Badge tone="accent">New</Badge>
-    <Button href="/podcast">Browse all</Button>
-  </Card>
-</Container>
-```
+- Marketing uses midnight/navy backgrounds, cool-white type, restrained glow, and generous spacing.
+- Application content uses a light canvas with a navy sidebar, violet active states, cyan highlights, and purple progress.
+- Primary buttons use the brand gradient. Secondary buttons use a transparent surface and violet border on dark backgrounds.
+- Cards use white or surface navy, subtle borders, 16–24px padding, and restrained shadows.
+- Manrope is used for display typography and Inter for body copy and controls.
+- Tenant-facing white-label colors may override product colors in tenant experiences, but must preserve WCAG AA contrast.
