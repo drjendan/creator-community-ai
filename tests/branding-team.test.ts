@@ -8,6 +8,10 @@ import {
   teamRoleKeys
 } from "@/lib/team-invitations";
 import { validateBrandImage } from "@/lib/image-validation";
+import {
+  isReservedPlatformLogo,
+  withoutReservedTenantLogo
+} from "@/lib/branding-settings";
 
 describe("team invitation security", () => {
   const migration = readFileSync(
@@ -85,6 +89,22 @@ describe("team invitation security", () => {
 });
 
 describe("brand image validation", () => {
+  it("keeps platform-owned Nexx Jenn artwork out of tenant logo fields", () => {
+    expect(isReservedPlatformLogo("/nexx-jenn-logo.png")).toBe(true);
+    expect(
+      isReservedPlatformLogo(
+        "https://creator.example/nexx-jenn-mark.png"
+      )
+    ).toBe(true);
+    expect(isReservedPlatformLogo("https://tenant.example/logo.png")).toBe(false);
+    expect(
+      withoutReservedTenantLogo({
+        logo_url: "/nexx-jenn-logo.png",
+        logo_storage_path: "legacy/platform-logo"
+      })
+    ).toEqual({ logo_url: null, logo_storage_path: null });
+  });
+
   it("accepts a valid PNG with safe dimensions", async () => {
     const bytes = new Uint8Array(32);
     bytes.set([0x89, 0x50, 0x4e, 0x47], 0);

@@ -3,7 +3,8 @@ import { getPlatformAdministrator } from "@/lib/platform-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   tenantBrandingRow,
-  tenantBrandingSchema
+  tenantBrandingSchema,
+  withoutReservedTenantLogo
 } from "@/lib/branding-settings";
 
 export async function GET(
@@ -25,7 +26,10 @@ export async function GET(
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
   }
-  return NextResponse.json({ tenant, branding });
+  return NextResponse.json({
+    tenant,
+    branding: withoutReservedTenantLogo(branding)
+  });
 }
 
 export async function POST(

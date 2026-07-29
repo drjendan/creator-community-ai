@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { tenantBrandingRow, tenantBrandingSchema } from "@/lib/branding-settings";
+import {
+  tenantBrandingRow,
+  tenantBrandingSchema,
+  withoutReservedTenantLogo
+} from "@/lib/branding-settings";
 import { getActiveTenantAdministrator } from "@/lib/tenant-context";
 
 export async function GET() {
@@ -21,7 +25,10 @@ export async function GET() {
       { status: 500 }
     );
   }
-  return NextResponse.json({ tenant: context.tenant, branding: data });
+  return NextResponse.json({
+    tenant: context.tenant,
+    branding: withoutReservedTenantLogo(data)
+  });
 }
 
 export async function POST(request: NextRequest) {

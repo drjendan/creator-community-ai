@@ -3,6 +3,25 @@ import { z } from "zod";
 export const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 export const optionalUrlSchema = z.string().url().or(z.literal("")).optional();
 
+export function isReservedPlatformLogo(value?: string | null) {
+  if (!value) return false;
+  try {
+    const path = new URL(value, "https://upnexx.invalid").pathname.toLowerCase();
+    return path.endsWith("/nexx-jenn-logo.png") || path.endsWith("/nexx-jenn-mark.png");
+  } catch {
+    return false;
+  }
+}
+
+export function withoutReservedTenantLogo<T extends Record<string, unknown> | null>(
+  branding: T
+) {
+  if (!branding || !isReservedPlatformLogo(String(branding.logo_url ?? ""))) {
+    return branding;
+  }
+  return { ...branding, logo_url: null, logo_storage_path: null };
+}
+
 export const tenantBrandingSchema = z.object({
   name: z.string().trim().min(1).max(120),
   shortName: z.string().trim().max(40).optional(),
@@ -45,8 +64,8 @@ export function tenantBrandingRow(
   return {
     tenant_id: tenantId,
     organization_short_name: value.shortName || null,
-    logo_url: value.logoUrl || null,
-    logo_storage_path: value.logoPath || null,
+    logo_url: isReservedPlatformLogo(value.logoUrl) ? null : value.logoUrl || null,
+    logo_storage_path: isReservedPlatformLogo(value.logoUrl) ? null : value.logoPath || null,
     square_icon_url: value.squareIconUrl || null,
     square_icon_storage_path: value.squareIconPath || null,
     favicon_url: value.faviconUrl || null,

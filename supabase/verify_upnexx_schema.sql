@@ -128,6 +128,11 @@ with checks(migration, requirement, installed) as (
     )),
     ('0011', 'atomic invitation acceptance', exists (
       select 1 from pg_proc where proname='accept_tenant_invitation'
+    )),
+    ('0012', 'no platform logo assigned to tenants', not exists (
+      select 1 from public.tenant_branding
+      where lower(coalesce(logo_url, '')) like '%/nexx-jenn-logo.png%'
+         or lower(coalesce(logo_url, '')) like '%/nexx-jenn-mark.png%'
     ))
 )
 select
