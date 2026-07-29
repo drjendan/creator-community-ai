@@ -16,14 +16,16 @@ type TenantRow = {
   status: string;
   tenant_type?: TenantType;
   created_at: string;
+  owner_invitation_last_sent_at?: string | null;
+  owner_activated_at?: string | null;
 };
 
 export default async function TenantsPage({
   searchParams
 }: {
-  searchParams: Promise<{ success?: string; error?: string }>;
+  searchParams: Promise<{ success?: string; error?: string; status?: string }>;
 }) {
-  const { success, error } = await searchParams;
+  const { success, error, status = "active" } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user }
@@ -33,21 +35,25 @@ export default async function TenantsPage({
     platformRole === "platform_owner" || platformRole === "platform_admin";
   let tenants: TenantRow[] = [];
   const memberCounts = new Map<string, number>();
+  const ownerEmails = new Map<string, string>();
 
   if (authorized) {
     const admin = createAdminClient();
-    const [{ data: tenantRows, error: tenantError }, { data: memberships }] =
+    const [{ data: tenantRows, error: tenantError }, { data: memberships }, { data: authUsers }] =
       await Promise.all([
         admin
           .from("tenants")
-          .select("id,name,slug,status,tenant_type,created_at")
+          .select("id,name,slug,status,tenant_type,created_at,owner_invitation_last_sent_at,owner_activated_at")
+          .neq("status", "deleted")
           .order("created_at", { ascending: true }),
-        admin.from("tenant_memberships").select("tenant_id")
+        admin.from("tenant_memberships").select("tenant_id,user_id,role"),
+        admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
       ]);
     if (tenantError && /tenant_type/i.test(tenantError.message)) {
       const { data: legacyRows } = await admin
         .from("tenants")
         .select("id,name,slug,status,created_at")
+        .neq("status", "deleted")
         .order("created_at", { ascending: true });
       tenants = (legacyRows ?? []) as TenantRow[];
     } else {
@@ -58,6 +64,13 @@ export default async function TenantsPage({
         membership.tenant_id,
         (memberCounts.get(membership.tenant_id) ?? 0) + 1
       );
+      if (membership.role === "tenant_owner") {
+        const owner = authUsers.users.find((candidate) => candidate.id === membership.user_id);
+        if (owner?.email) ownerEmails.set(membership.tenant_id, owner.email);
+      }
+    }
+    if (["pending", "active", "suspended", "archived"].includes(status)) {
+      tenants = tenants.filter((tenant) => tenant.status === status);
     }
   }
 
@@ -76,7 +89,10 @@ export default async function TenantsPage({
             membership templates, branding, and tenant administrators.
           </p>
         </div>
-        <Button href="#new-tenant">Create tenant</Button>
+        <div className="flex gap-2">
+          {platformRole === "platform_owner" && <Button href="/platform-admin/tenants/deleted" variant="secondary">Deleted records</Button>}
+          <Button href="#new-tenant">Create tenant</Button>
+        </div>
       </div>
 
       {(success || error) && (
@@ -110,6 +126,13 @@ export default async function TenantsPage({
             <p className="text-sm text-brand-500">
               {tenants.length} workspace{tenants.length === 1 ? "" : "s"}
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {["pending", "active", "suspended", "archived"].map((filter) => (
+                <Link key={filter} href={`/platform-admin/tenants?status=${filter}`} className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize ${status === filter ? "bg-accent-600 text-white" : "bg-brand-100 text-brand-700"}`}>
+                  {filter}
+                </Link>
+              ))}
+            </div>
           </div>
           {tenants.length === 0 ? (
             <p className="p-8 text-center text-sm text-brand-500">
@@ -123,6 +146,7 @@ export default async function TenantsPage({
                     <th className="px-5 py-3">Tenant</th>
                     <th className="px-5 py-3">Type</th>
                     <th className="px-5 py-3">Users</th>
+                    <th className="px-5 py-3">Owner invitation</th>
                     <th className="px-5 py-3">Status</th>
                     <th className="px-5 py-3 text-right">Manage</th>
                   </tr>
@@ -151,8 +175,12 @@ export default async function TenantsPage({
                       <td className="px-5 py-4 text-brand-600">
                         {memberCounts.get(tenant.id) ?? 0}
                       </td>
+                      <td className="px-5 py-4 text-brand-600">
+                        <p className="font-semibold">{ownerEmails.get(tenant.id) ?? "No owner"}</p>
+                        <p className="mt-1 text-xs">{tenant.owner_activated_at ? "Activated" : tenant.owner_invitation_last_sent_at ? `Last sent ${new Date(tenant.owner_invitation_last_sent_at).toLocaleDateString()}` : "Pending"}</p>
+                      </td>
                       <td className="px-5 py-4">
-                        <span className="rounded-full bg-success-soft px-2.5 py-1 text-xs font-bold capitalize text-success-strong">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-bold capitalize ${tenant.status === "active" ? "bg-success-soft text-success-strong" : tenant.status === "suspended" ? "bg-warning-soft text-brand-800" : tenant.status === "archived" ? "bg-brand-200 text-brand-700" : "bg-accent-100 text-accent-800"}`}>
                           {tenant.status}
                         </span>
                       </td>

@@ -21,6 +21,7 @@ export const dashboardNavItems = [
   { label: "Branding", href: "/dashboard/branding" },
   { label: "Team", href: "/dashboard/team" },
   { label: "AI Providers", href: "/dashboard/settings/integrations/ai-providers", featureKey: "creator_ai_studio" },
+  { label: "Payments", href: "/dashboard/settings/integrations/payments" },
   { label: "Settings", href: "/dashboard/settings" }
 ];
 

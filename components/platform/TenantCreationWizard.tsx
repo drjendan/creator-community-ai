@@ -8,6 +8,7 @@ import {
   featureCatalog, membershipTemplateIds, membershipTemplates,
   platformPlanSlugs, recommendedMembershipTemplate, tenantTypeLabels, tenantTypes
 } from "@/lib/subscriptions";
+import { validateTenantSlug } from "@/lib/tenant-domains";
 
 type FeatureKey = (typeof featureCatalog)[number]["key"];
 
@@ -46,7 +47,7 @@ export function TenantCreationWizard({ authorized }: { authorized: boolean }) {
   }, [membershipTemplateOverridden, state.tenantType]);
 
   const canContinue = useMemo(() => {
-    if (step === 0) return state.name.trim().length >= 2 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(state.slug);
+    if (step === 0) return state.name.trim().length >= 2 && !validateTenantSlug(state.slug);
     if (step === 5) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.ownerEmail);
     return true;
   }, [state, step]);

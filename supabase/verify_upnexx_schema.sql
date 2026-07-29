@@ -133,7 +133,40 @@ with checks(migration, requirement, installed) as (
       select 1 from public.tenant_branding
       where lower(coalesce(logo_url, '')) like '%/nexx-jenn-logo.png%'
          or lower(coalesce(logo_url, '')) like '%/nexx-jenn-mark.png%'
-    ))
+    )),
+    ('0013', 'tenant domain metadata', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_domains' and column_name='domain_type'
+    ) and exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_domains' and column_name='ssl_status'
+    )),
+    ('0013', 'tenant Stripe Connect accounts', to_regclass('public.tenant_stripe_accounts') is not null),
+    ('0013', 'paid membership setup gate', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_membership_plans' and column_name='payment_setup_required'
+    )),
+    ('0014', 'tenant lifecycle metadata', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenants' and column_name='suspended_at'
+    ) and exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenants' and column_name='archived_at'
+    ) and exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenants' and column_name='deleted_at'
+    )),
+    ('0014', 'owner invitation tracking', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenants' and column_name='owner_invitation_last_sent_at'
+    ) and exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenants' and column_name='owner_invitation_send_count'
+    ) and exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenants' and column_name='owner_activated_at'
+    )),
+    ('0014', 'retained deletion records', to_regclass('public.platform_tenant_deletion_records') is not null)
 )
 select
   migration,

@@ -1,5 +1,6 @@
-export type TenantSource = "path" | "subdomain" | "custom-domain";
+import { reservedTenantSlugs } from "@/lib/tenant-domains";
 
+export type TenantSource = "path" | "subdomain" | "custom-domain";
 export interface TenantResolution {
   slug: string;
   source: TenantSource;
@@ -18,10 +19,12 @@ export function resolveTenantIdentifier(input: {
   if (pathMatch) return { slug: pathMatch[1].toLowerCase(), source: "path" };
   if (!input.host) return null;
   const host = normalizeHost(input.host);
-  const root = normalizeHost(input.rootDomain ?? "upnexx.com");
+  const root = normalizeHost(input.rootDomain ?? "upnexx.net");
   if (host.endsWith(`.${root}`)) {
     const slug = host.slice(0, -(root.length + 1)).split(".").at(-1);
-    return slug && slug !== "www" ? { slug, source: "subdomain" } : null;
+    return slug && !reservedTenantSlugs.has(slug)
+      ? { slug, source: "subdomain" }
+      : null;
   }
   return { slug: host, source: "custom-domain" };
 }

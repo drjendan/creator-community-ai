@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Check, Edit3, Plus, RefreshCw, Trash2, Users, X } from "lucide-react";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 
@@ -10,7 +11,7 @@ type Plan = {
   community_access: boolean; ai_access: boolean; ai_monthly_allowance: number;
   member_limit?: number; visibility: "public" | "private"; status: "active" | "inactive";
   sort_order: number; access_rules?: Record<string, boolean>; benefits?: string[]; color?: string;
-  created_from_template?: boolean; template_key?: string;
+  created_from_template?: boolean; template_key?: string; payment_setup_required?: boolean;
 };
 
 export function MembershipPlanManager() {
@@ -19,12 +20,16 @@ export function MembershipPlanManager() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [payments, setPayments] = useState({ status: "not_connected", enabled: false });
 
   const load = useCallback(async () => {
     setLoading(true);
     const response = await fetch("/api/membership-plans", { cache: "no-store" });
     const result = await response.json();
-    if (response.ok) setPlans(result.plans); else setMessage(result.error ?? "Unable to load membership plans.");
+    if (response.ok) {
+      setPlans(result.plans);
+      setPayments(result.payments ?? { status: "not_connected", enabled: false });
+    } else setMessage(result.error ?? "Unable to load membership plans.");
     setLoading(false);
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -51,7 +56,9 @@ export function MembershipPlanManager() {
     });
     const result = await response.json();
     if (!response.ok) return setMessage(result.error ?? "Unable to save the membership plan.");
-    setMessage(result.metadataDeferred
+    setMessage(result.paymentSetupRequired
+      ? "Paid plan saved as a draft. Connect and finish Stripe setup before publishing it."
+      : result.metadataDeferred
       ? "Membership plan saved. Apply database migration 0008 to enable colors, benefits, and template metadata."
       : "Audience membership plan saved.");
     setOpen(false); setEditing(null); await load();
@@ -70,6 +77,7 @@ export function MembershipPlanManager() {
   return <div className="space-y-6">
     <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-accent-700">Audience revenue</p><h1 className="mt-2 font-display text-3xl font-extrabold text-brand-900">Membership Plans</h1><p className="mt-2 max-w-2xl text-sm text-brand-600">Create the free and paid plans this tenant offers its audience. These plans are separate from the tenant&apos;s UpNexx platform subscription.</p></div><Button type="button" onClick={() => edit(null)}><Plus className="h-4 w-4" />Add membership plan</Button></div>
     {message && <div role="status" className="rounded-xl border border-brand-200 bg-white px-4 py-3 text-sm font-semibold text-brand-700">{message}</div>}
+    {!payments.enabled && <div className="rounded-xl border border-brand-200 bg-white px-4 py-3 text-sm text-brand-700"><strong>Stripe is not connected.</strong> Free plans work normally. Paid plans are saved as drafts until payment setup is complete. <Link className="font-bold text-accent-700 underline" href="/dashboard/settings/integrations/payments">Connect Stripe</Link></div>}
     {plans.some((plan) => plan.created_from_template) && <div className="rounded-xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-brand-700"><strong>Editable starter plans:</strong> We created these memberships from the template selected during setup. You can customize them now or return to them later.</div>}
 
     {open && <Card><div className="mb-5 flex items-center justify-between"><h2 className="font-display text-xl font-bold text-brand-900">{editing ? "Edit" : "Add"} audience plan</h2><button onClick={() => setOpen(false)} aria-label="Close"><X className="h-5 w-5" /></button></div><form onSubmit={save} className="grid gap-5 md:grid-cols-2">

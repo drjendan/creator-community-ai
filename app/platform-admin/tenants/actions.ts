@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { databaseErrorMessage, isMissingEditableMembershipMetadata } from "@/lib/supabase/error";
 import { withoutEditableMembershipMetadata } from "@/lib/membership-plan-compat";
 import { featureCatalog, membershipTemplateIds, membershipTemplates, platformPlanSlugs, tenantTypes } from "@/lib/subscriptions";
+import { tenantHostname, tenantOrigin, validateTenantSlug } from "@/lib/tenant-domains";
 
 const tenantSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -26,6 +27,9 @@ const tenantSchema = z.object({
   recommendedMembershipTemplate: z.enum(membershipTemplateIds),
   membershipTemplateOverridden: z.enum(["true", "false"]),
   aiAccessMode: z.enum(["tenant_adds_key", "configure_after_creation", "disabled"])
+}).superRefine((input, context) => {
+  const error = validateTenantSlug(input.slug);
+  if (error) context.addIssue({ code: z.ZodIssueCode.custom, path: ["slug"], message: error });
 });
 
 const platformRoles = new Set(["platform_owner", "platform_admin"]);
@@ -82,7 +86,7 @@ export async function createTenant(formData: FormData) {
       .insert({
         name: input.name,
         slug: input.slug,
-        status: "active",
+        status: "pending",
         tenant_type: input.tenantType,
         updated_at: new Date().toISOString()
       })
@@ -91,6 +95,17 @@ export async function createTenant(formData: FormData) {
 
     if (tenantError) throw tenantError;
     createdTenantId = tenant.id;
+
+    const tenantHost = tenantHostname(tenant.slug);
+    const [{ error: domainError }, { error: stripeStateError }] = await Promise.all([
+      admin.from("tenant_domains").insert({
+        tenant_id: tenant.id, hostname: tenantHost, is_primary: true,
+        status: "pending", domain_type: "upnexx_subdomain", ssl_status: "pending"
+      }),
+      admin.from("tenant_stripe_accounts").insert({ tenant_id: tenant.id, status: "not_connected" })
+    ]);
+    if (domainError) throw domainError;
+    if (stripeStateError) throw stripeStateError;
 
     const { error: brandingError } = await admin.from("tenant_branding").upsert({
       tenant_id: tenant.id,
@@ -112,7 +127,9 @@ export async function createTenant(formData: FormData) {
     let invitationSent = false;
 
     if (!owner) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+      const appUrl = process.env.TENANT_SUBDOMAINS_ENABLED === "true"
+        ? tenantOrigin(tenant.slug)
+        : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
       const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
         input.ownerEmail,
         {
@@ -126,6 +143,18 @@ export async function createTenant(formData: FormData) {
     }
 
     if (!owner) throw new Error("The tenant owner account could not be created.");
+
+    const ownerActivatedAt = owner.email_confirmed_at || owner.last_sign_in_at || null;
+    const invitationTimestamp = new Date().toISOString();
+    const { error: ownerTrackingError } = await admin.from("tenants").update({
+      status: ownerActivatedAt ? "active" : "pending",
+      owner_invited_at: invitationSent ? invitationTimestamp : null,
+      owner_invitation_last_sent_at: invitationSent ? invitationTimestamp : null,
+      owner_invitation_send_count: invitationSent ? 1 : 0,
+      owner_activated_at: ownerActivatedAt,
+      updated_at: invitationTimestamp
+    }).eq("id", tenant.id);
+    if (ownerTrackingError) throw ownerTrackingError;
 
     const { error: membershipError } = await admin.from("tenant_memberships").upsert(
       {
@@ -238,7 +267,9 @@ export async function createTenant(formData: FormData) {
 
     const template = membershipTemplates[input.membershipTemplate];
     if (template.plans.length) {
-      const planRows = template.plans.map((membershipPlan) => ({
+      const planRows = template.plans.map((membershipPlan) => {
+        const requiresPayments = membershipPlan.planType === "paid";
+        return {
         tenant_id: tenant.id,
         name: membershipPlan.name,
         slug: `${membershipPlan.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${tenant.id.slice(0, 6)}`,
@@ -251,17 +282,19 @@ export async function createTenant(formData: FormData) {
         ai_access: membershipPlan.aiAccess,
         ai_monthly_allowance: membershipPlan.aiMonthlyAllowance,
         visibility: "public",
-        status: "active",
+        status: requiresPayments ? "inactive" : "active",
         sort_order: membershipPlan.sortOrder,
         display_order: membershipPlan.sortOrder,
-        is_active: true,
+        is_active: !requiresPayments,
+        payment_setup_required: requiresPayments,
         is_editable: true,
         created_from_template: true,
         template_key: input.membershipTemplate,
         benefits: [],
         color: null,
         access_rules: {}
-      }));
+      };
+      });
       const { error: membershipPlansError } = await admin.from("tenant_membership_plans").insert(planRows);
       if (membershipPlansError && isMissingEditableMembershipMetadata(membershipPlansError)) {
         membershipMetadataDeferred = true;
@@ -335,13 +368,15 @@ export async function createTenant(formData: FormData) {
         ai_credit_allowance: input.aiCreditAllowance || plan.ai_credit_allowance,
         features: input.features,
         invitation_sent: invitationSent,
-        ai_access_mode: input.aiAccessMode
+        ai_access_mode: input.aiAccessMode,
+        tenant_url: tenantOrigin(tenant.slug),
+        stripe_status: "not_connected"
       }
     });
 
     resultMessage = invitationSent
-      ? `${input.name} was created and an owner invitation was sent to ${input.ownerEmail}.`
-      : `${input.name} was created and ${input.ownerEmail} was assigned as its owner.`;
+      ? `${input.name} was created at ${tenantOrigin(input.slug)} and an owner invitation was sent to ${input.ownerEmail}. Stripe can be connected later.`
+      : `${input.name} was created at ${tenantOrigin(input.slug)} and ${input.ownerEmail} was assigned as its owner. Stripe can be connected later.`;
     if (membershipMetadataDeferred) {
       resultMessage += " Starter memberships were created with legacy fields; apply database migration 0008 to enable template metadata, colors, and benefits.";
     }
@@ -368,7 +403,6 @@ const updateSchema = z.object({
   tenantId: z.string().uuid(),
   name: z.string().trim().min(2).max(100),
   tenantType: z.enum(tenantTypes),
-  status: z.enum(["active", "suspended"]),
   planSlug: z.enum(platformPlanSlugs),
   subscriptionStatus: z.enum(["trialing", "active", "past_due", "canceled"]),
   billingFrequency: z.enum(["monthly", "annual", "custom", "none"]),
@@ -399,7 +433,7 @@ export async function updateTenant(formData: FormData) {
   const { data: plan, error: planError } = await admin.from("platform_plans").select("id").eq("slug", input.planSlug).single();
   if (planError || !plan) redirect(destination("The selected platform plan is unavailable.", "error"));
   const [{ error: tenantError }, { error: subscriptionError }, { error: aiCredentialPolicyError }] = await Promise.all([
-    admin.from("tenants").update({ name: input.name, tenant_type: input.tenantType, status: input.status, updated_at: new Date().toISOString() }).eq("id", input.tenantId),
+    admin.from("tenants").update({ name: input.name, tenant_type: input.tenantType, updated_at: new Date().toISOString() }).eq("id", input.tenantId),
     admin.from("tenant_subscriptions").upsert({
       tenant_id: input.tenantId, plan_id: plan.id, status: input.subscriptionStatus,
       billing_frequency: input.billingFrequency, custom_price: input.customPrice === "" ? null : input.customPrice,

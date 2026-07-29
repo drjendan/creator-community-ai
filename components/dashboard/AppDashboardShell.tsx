@@ -31,7 +31,7 @@ function groupNavigation(nav: DashboardNavItem[]): DashboardNavGroup[] {
         ["Audience", ["Community", "Memberships", "Members"]],
         ["AI & insights", ["AI Studio", "AI Coach", "Analytics"]],
         ["Communication Hub", ["Communication Hub", "Announcements", "Messages", "Email Campaigns", "Templates", "Audience Segments", "Scheduled", "Automations", "Reports", "Email Provider"]],
-        ["Workspace", ["Branding", "Team", "AI Providers", "Settings"]]
+        ["Workspace", ["Branding", "Team", "AI Providers", "Payments", "Settings"]]
       ];
 
   return definitions.map(([label, itemLabels]) => ({

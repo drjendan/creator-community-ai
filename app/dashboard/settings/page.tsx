@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KeyRound, Mail, Palette } from "lucide-react";
+import { CreditCard, KeyRound, Mail, Palette } from "lucide-react";
 import { Card } from "@/components/ui";
 import { getActiveTenantManager } from "@/lib/tenant-context";
 import { getTenantEntitlements } from "@/lib/feature-entitlements";
@@ -48,6 +48,17 @@ export default async function SettingsPage() {
             <p className="mt-2 text-sm text-brand-600">
               Manage organization identity, support details, colors, images,
               member welcome content, and email branding.
+            </p>
+          </Card>
+        </Link>
+        <Link href="/dashboard/settings/integrations/payments">
+          <Card className="h-full transition hover:border-accent-400">
+            <CreditCard className="h-6 w-6 text-accent-700" />
+            <h2 className="mt-4 font-display text-lg font-bold text-brand-900">
+              Integrations · Payments
+            </h2>
+            <p className="mt-2 text-sm text-brand-600">
+              Connect Stripe now or later. Free plans remain available without a payment provider.
             </p>
           </Card>
         </Link>

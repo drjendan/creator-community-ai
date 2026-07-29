@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getActiveTenantManager } from "@/lib/tenant-context";
 import { isMissingEditableMembershipMetadata } from "@/lib/supabase/error";
 import { withoutEditableMembershipMetadata } from "@/lib/membership-plan-compat";
+import { canAcceptPayments } from "@/lib/stripe-connect";
 
 const schema = z.object({
   id: z.string().uuid().optional(),
@@ -34,7 +35,8 @@ export async function GET() {
   if (!["tenant_owner", "tenant_admin"].includes(context.role)) return NextResponse.json({ error: "Tenant owner or administrator access is required." }, { status: 403 });
   const { data, error } = await context.supabase.from("tenant_membership_plans").select("*").eq("tenant_id", context.tenant.id).order("sort_order").order("price_monthly");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ plans: data ?? [], tenant: context.tenant });
+  const { data: stripe } = await context.supabase.from("tenant_stripe_accounts").select("status,charges_enabled,card_payments_status,platform_fee_active").eq("tenant_id", context.tenant.id).maybeSingle();
+  return NextResponse.json({ plans: data ?? [], tenant: context.tenant, payments: { status: stripe?.status ?? "not_connected", enabled: stripe ? canAcceptPayments(stripe) : false } });
 }
 
 export async function POST(request: NextRequest) {
@@ -44,6 +46,9 @@ export async function POST(request: NextRequest) {
   if (!context) return NextResponse.json({ error: "No manageable tenant is assigned to this account." }, { status: 403 });
   if (!["tenant_owner", "tenant_admin"].includes(context.role)) return NextResponse.json({ error: "Tenant owner or administrator access is required." }, { status: 403 });
   const input = parsed.data;
+  const { data: stripe } = await context.supabase.from("tenant_stripe_accounts").select("charges_enabled,card_payments_status,platform_fee_active").eq("tenant_id", context.tenant.id).maybeSingle();
+  const paymentSetupRequired = input.planType === "paid" && !canAcceptPayments(stripe ?? {});
+  const effectiveStatus = paymentSetupRequired ? "inactive" : input.status;
   const values = {
     tenant_id: context.tenant.id,
     name: input.name,
@@ -58,10 +63,11 @@ export async function POST(request: NextRequest) {
     ai_monthly_allowance: input.aiAccess ? input.aiMonthlyAllowance : 0,
     member_limit: input.memberLimit,
     visibility: input.visibility,
-    status: input.status,
+    status: effectiveStatus,
     sort_order: input.sortOrder,
     display_order: input.sortOrder,
-    is_active: input.status === "active",
+    is_active: effectiveStatus === "active",
+    payment_setup_required: paymentSetupRequired,
     is_editable: true,
     benefits: input.benefits,
     color: input.color,
@@ -87,7 +93,7 @@ export async function POST(request: NextRequest) {
     entity_type: "tenant_membership_plan", entity_id: result.data.id,
     metadata: { name: input.name, plan_type: input.planType }
   });
-  return NextResponse.json({ plan: result.data, metadataDeferred });
+  return NextResponse.json({ plan: result.data, metadataDeferred, paymentSetupRequired });
 }
 
 export async function DELETE(request: NextRequest) {
