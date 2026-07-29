@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { Button, Card, Container, Field, Input } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
+import { createPasswordRecoveryClient } from "@/lib/supabase/client";
 
 const successMessage = "Password reset email sent. Please check your inbox and spam folder.";
 
@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
     console.info("[Password recovery] Supabase recovery request started");
 
     try {
-      const supabase = createClient();
+      const supabase = createPasswordRecoveryClient();
       const { error } = await supabase.auth.resetPasswordForEmail(submittedEmail, {
         redirectTo: `${window.location.origin}/update-password`
       });

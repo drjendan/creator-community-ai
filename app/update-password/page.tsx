@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { Button, Card, Container, Field, Input } from "@/components/ui";
-import { createClient } from "@/lib/supabase/client";
+import { createPasswordRecoveryClient } from "@/lib/supabase/client";
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
@@ -16,18 +16,11 @@ export default function UpdatePasswordPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = createPasswordRecoveryClient();
     let active = true;
 
     async function prepareRecoverySession() {
       try {
-        const code = new URLSearchParams(window.location.search).get("code");
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
         if (active) {
@@ -61,7 +54,7 @@ export default function UpdatePasswordPage() {
 
     setSaving(true);
     try {
-      const supabase = createClient();
+      const supabase = createPasswordRecoveryClient();
       const { error } = await supabase.auth.updateUser({ password });
       if (error) {
         setMessage(error.message);
