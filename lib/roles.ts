@@ -3,7 +3,13 @@ export type Role =
   | "platform_admin"
   | "tenant_owner"
   | "tenant_admin"
+  | "communication_manager"
   | "content_manager"
+  | "course_manager"
+  | "event_manager"
+  | "community_manager"
   | "community_moderator"
+  | "analyst"
+  | "support_staff"
   | "member"
   | "guest";

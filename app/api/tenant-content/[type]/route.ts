@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getActiveTenantManager } from "@/lib/tenant-context";
+import { getTenantEntitlements } from "@/lib/feature-entitlements";
 
 const contentTypes = ["episodes", "courses", "events", "resources", "community"] as const;
 type ContentType = (typeof contentTypes)[number];
@@ -27,9 +28,29 @@ const tableFor: Record<ContentType, string> = {
   resources: "resources",
   community: "community_spaces"
 };
+const featureFor: Record<ContentType, string> = {
+  episodes: "podcasts",
+  courses: "courses",
+  events: "events",
+  resources: "resources",
+  community: "community"
+};
+
+async function isEnabled(context: NonNullable<Awaited<ReturnType<typeof getActiveTenantManager>>>, type: ContentType) {
+  const entitlements = await getTenantEntitlements(context.tenant.id, context.supabase);
+  return entitlements.get(featureFor[type]) === true;
+}
 
 function validType(value: string): value is ContentType {
   return contentTypes.includes(value as ContentType);
+}
+
+function canManageType(role: string, type: ContentType) {
+  if (["tenant_owner", "tenant_admin", "content_manager"].includes(role)) return true;
+  if (type === "courses") return role === "course_manager";
+  if (type === "events") return role === "event_manager";
+  if (type === "community") return ["community_manager", "community_moderator"].includes(role);
+  return false;
 }
 
 function slugify(value: string) {
@@ -82,6 +103,8 @@ export async function GET(
   if (!validType(type)) return NextResponse.json({ error: "Unknown content type." }, { status: 404 });
   const context = await getActiveTenantManager();
   if (!context) return NextResponse.json({ error: "No manageable tenant is assigned to this account." }, { status: 403 });
+  if (!canManageType(context.role, type)) return NextResponse.json({ error: "Your tenant role cannot manage this content type." }, { status: 403 });
+  if (!(await isEnabled(context, type))) return NextResponse.json({ error: "This content feature is not enabled." }, { status: 403 });
 
   const titleField = type === "community" ? "name" : "title";
   const { data, error } = await context.supabase
@@ -108,8 +131,18 @@ export async function POST(
   if (!parsed.success) return NextResponse.json({ error: "Check the required fields." }, { status: 400 });
   const context = await getActiveTenantManager();
   if (!context) return NextResponse.json({ error: "No manageable tenant is assigned to this account." }, { status: 403 });
+  if (!canManageType(context.role, type)) return NextResponse.json({ error: "Your tenant role cannot manage this content type." }, { status: 403 });
+  if (!(await isEnabled(context, type))) return NextResponse.json({ error: "This content feature is not enabled." }, { status: 403 });
 
   const input = parsed.data;
+  if (input.status === "published") {
+    if (type === "episodes" && !input.mediaUrl && !input.secondaryUrl) {
+      return NextResponse.json({ error: "Add audio or video before publishing an episode." }, { status: 400 });
+    }
+    if ((type === "courses" || type === "resources") && !input.mediaUrl) {
+      return NextResponse.json({ error: `Add a ${type === "courses" ? "course file" : "resource file"} before publishing.` }, { status: 400 });
+    }
+  }
   const now = new Date().toISOString();
   let values: Record<string, unknown> = {
     tenant_id: context.tenant.id,
@@ -189,6 +222,8 @@ export async function DELETE(
   if (!id || !z.string().uuid().safeParse(id).success) return NextResponse.json({ error: "A valid item is required." }, { status: 400 });
   const context = await getActiveTenantManager();
   if (!context) return NextResponse.json({ error: "No manageable tenant is assigned to this account." }, { status: 403 });
+  if (!canManageType(context.role, type)) return NextResponse.json({ error: "Your tenant role cannot manage this content type." }, { status: 403 });
+  if (!(await isEnabled(context, type))) return NextResponse.json({ error: "This content feature is not enabled." }, { status: 403 });
 
   const { error } = await context.supabase
     .from(tableFor[type])

@@ -2,9 +2,12 @@
 import { BookOpen, ExternalLink, FileText } from "lucide-react";
 import { Card, Container, SectionHeading } from "@/components/ui";
 import { getPublishedCourses } from "@/lib/content/member-library";
+import { notFound } from "next/navigation";
+import { tenantHasFeature } from "@/lib/tenant-site";
 
 export default async function CoursesPage({ params }: { params: Promise<{ "tenant-slug": string }> }) {
   const { "tenant-slug": tenantSlug } = await params;
+  if (!(await tenantHasFeature(tenantSlug, "courses"))) notFound();
   const courses = await getPublishedCourses(tenantSlug);
   return (
     <main className="py-16">

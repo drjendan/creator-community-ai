@@ -18,21 +18,10 @@ export async function getPublishedCourses(tenantSlug: string) {
     .select("id,title,description,access_level,publish_date,cover_image_url,content_url")
     .eq("tenant_id", tenantId)
     .eq("status", "published")
+    .not("content_url", "is", null)
     .order("publish_date", { ascending: false, nullsFirst: false });
   if (!error) return data ?? [];
-
-  // Keep the member library usable until migration 0005 is installed.
-  const { data: legacy } = await supabase
-    .from("courses")
-    .select("id,title,description,access_level,publish_date,cover_image_url")
-    .eq("tenant_id", tenantId)
-    .eq("status", "published")
-    .order("publish_date", { ascending: false, nullsFirst: false });
-  return (legacy ?? []).map((course) => ({
-    ...course,
-    content_url: course.cover_image_url,
-    cover_image_url: null
-  }));
+  return [];
 }
 
 export async function getPublishedResources(tenantSlug: string) {
@@ -44,16 +33,9 @@ export async function getPublishedResources(tenantSlug: string) {
     .select("id,title,description,access_level,resource_type,url,cover_image_url,created_at")
     .eq("tenant_id", tenantId)
     .eq("status", "published")
+    .neq("url", "")
     .order("created_at", { ascending: false });
-  if (!error) return data ?? [];
-
-  const { data: legacy } = await supabase
-    .from("resources")
-    .select("id,title,description,access_level,resource_type,url,created_at")
-    .eq("tenant_id", tenantId)
-    .eq("status", "published")
-    .order("created_at", { ascending: false });
-  return (legacy ?? []).map((resource) => ({ ...resource, cover_image_url: null }));
+  return error ? [] : data ?? [];
 }
 
 export async function getPublishedEvents(tenantSlug: string) {

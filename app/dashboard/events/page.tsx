@@ -1,2 +1,4 @@
 import { TenantContentManager } from "@/components/dashboard/TenantContentManager";
-export default function EventsPage() { return <TenantContentManager type="events" />; }
+import { notFound } from "next/navigation";
+import { requireTenantFeature } from "@/lib/feature-entitlements";
+export default async function EventsPage() { if (!(await requireTenantFeature("events"))) notFound(); return <TenantContentManager type="events" />; }

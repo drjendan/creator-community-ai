@@ -79,6 +79,55 @@ with checks(migration, requirement, installed) as (
     ('0008', 'membership colors', exists (
       select 1 from information_schema.columns
       where table_schema='public' and table_name='tenant_membership_plans' and column_name='color'
+    )),
+
+    ('0009', 'communication provider configuration', to_regclass('public.tenant_communication_provider_configs') is not null),
+    ('0009', 'announcements', to_regclass('public.communication_announcements') is not null),
+    ('0009', 'organization messages', to_regclass('public.communication_messages') is not null),
+    ('0009', 'email campaigns', to_regclass('public.email_campaigns') is not null),
+    ('0009', 'email templates', to_regclass('public.email_templates') is not null),
+    ('0009', 'audience segments', to_regclass('public.audience_segments') is not null),
+    ('0009', 'communication automations', to_regclass('public.communication_automations') is not null),
+    ('0009', 'delivery events', to_regclass('public.communication_delivery_events') is not null),
+    ('0009', 'member communication preferences', to_regclass('public.member_communication_preferences') is not null),
+    ('0009', 'communication suppressions', to_regclass('public.communication_suppressions') is not null),
+    ('0009', 'communication usage tracking', to_regclass('public.communication_usage') is not null),
+    ('0009', 'communication audit events', to_regclass('public.communication_audit_events') is not null),
+    ('0009', 'expanded tenant branding', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_branding' and column_name='welcome_headline'
+    )),
+    ('0009', 'team invitation user tracking', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_invitations' and column_name='invited_user_id'
+    )),
+
+    ('0010', 'platform branding', to_regclass('public.platform_branding') is not null),
+    ('0010', 'public brand asset bucket', exists (
+      select 1 from storage.buckets
+      where id='brand-assets' and public is true
+    )),
+
+    ('0011', 'branding storage paths', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_branding' and column_name='logo_storage_path'
+    )),
+    ('0011', 'branding button and link colors', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_branding' and column_name='button_color'
+    ) and exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_branding' and column_name='link_color'
+    )),
+    ('0011', 'team invitation lifecycle', exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_invitations' and column_name='accepted_at'
+    ) and exists (
+      select 1 from information_schema.columns
+      where table_schema='public' and table_name='tenant_invitations' and column_name='delivery_error'
+    )),
+    ('0011', 'atomic invitation acceptance', exists (
+      select 1 from pg_proc where proname='accept_tenant_invitation'
     ))
 )
 select

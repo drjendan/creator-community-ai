@@ -86,7 +86,7 @@ export async function createTenant(formData: FormData) {
         tenant_type: input.tenantType,
         updated_at: new Date().toISOString()
       })
-      .select("id")
+      .select("id,name,slug")
       .single();
 
     if (tenantError) throw tenantError;
@@ -167,16 +167,14 @@ export async function createTenant(formData: FormData) {
     if (subscriptionError) throw subscriptionError;
 
     const allowedFeatures = new Set(featureCatalog.map((feature) => feature.key));
-    const entitlements = input.features
-      .filter((key) => allowedFeatures.has(key as never))
-      .filter((key) => input.aiAccessMode !== "disabled" || key !== "creator_ai_studio")
-      .map((featureKey) => ({
-      tenant_id: tenant.id,
-      feature_key: featureKey,
-      enabled: true,
-      source: "override",
-      updated_at: now.toISOString()
-    }));
+    const selectedFeatures = new Set(input.features.filter((key) => allowedFeatures.has(key as never)));
+    const entitlements = featureCatalog.map(({ key: featureKey }) => ({
+        tenant_id: tenant.id,
+        feature_key: featureKey,
+        enabled: selectedFeatures.has(featureKey) && (input.aiAccessMode !== "disabled" || featureKey !== "creator_ai_studio"),
+        source: "override",
+        updated_at: now.toISOString()
+      }));
     if (input.aiAccessMode === "disabled") {
       entitlements.push({
         tenant_id: tenant.id,
@@ -189,6 +187,53 @@ export async function createTenant(formData: FormData) {
     if (entitlements.length) {
       const { error: entitlementError } = await admin.from("tenant_feature_entitlements").upsert(entitlements, { onConflict: "tenant_id,feature_key" });
       if (entitlementError) throw entitlementError;
+    }
+
+    if (selectedFeatures.has("communication_hub")) {
+      const starterTemplates = [
+        ["Welcome", "welcome", `Welcome to ${tenant.name}`, `Welcome to ${tenant.name}. Visit your member home to get started.`],
+        ["Announcement", "announcement", "An update from our organization", "We have an important update to share with you."],
+        ["Newsletter", "newsletter", "Your organization newsletter", "Here are the latest updates from our organization."],
+        ["Event Invitation", "event_invitation", "You are invited", "You are invited to join our upcoming event."],
+        ["Event Reminder", "event_reminder", "Event reminder", "This is a reminder about your upcoming event."],
+        ["New Content", "new_content", "New content is available", "New member content is now available."],
+        ["Course Enrollment", "course_enrollment", "Course enrollment confirmed", "Your course enrollment is confirmed."],
+        ["Course Reminder", "course_reminder", "Continue your course", "Return to your member home to continue learning."],
+        ["Membership Renewal", "membership_renewal", "Membership renewal reminder", "Review your membership renewal details in your member account."],
+        ["General Update", "general_update", "An update from our organization", "We have an update to share with you."]
+      ].map(([name, category, subject, body]) => ({
+        tenant_id: tenant.id,
+        name,
+        description: `Editable ${name.toLowerCase()} email template`,
+        category,
+        subject,
+        preview_text: "",
+        content_json: [{ type: "paragraph", text: body }],
+        html_content: `<p>${body}</p>`,
+        plain_text_content: body,
+        is_default: name === "Welcome",
+        is_active: true,
+        created_from_system_template: true,
+        created_by: user.id,
+        updated_by: user.id
+      }));
+      const { data: templates, error: templateSeedError } = await admin.from("email_templates").insert(starterTemplates).select("id,category");
+      if (templateSeedError) throw templateSeedError;
+      const welcomeTemplate = templates?.find((item) => item.category === "welcome");
+      const { data: automation, error: automationError } = await admin.from("communication_automations").insert({
+        tenant_id: tenant.id,
+        name: "Welcome new members",
+        trigger_type: "member_joined",
+        status: "inactive",
+        is_system_default: true,
+        created_by: user.id
+      }).select("id").single();
+      if (automationError) throw automationError;
+      const { error: stepError } = await admin.from("communication_automation_steps").insert([
+        { tenant_id: tenant.id, automation_id: automation.id, position: 0, action_type: "send_email", configuration: { template_id: welcomeTemplate?.id, button_label: "Visit Your Member Home", button_destination: `/demo/${tenant.slug}/welcome` } },
+        { tenant_id: tenant.id, automation_id: automation.id, position: 1, action_type: "create_message", configuration: { subject: `Welcome to ${tenant.name}` } }
+      ]);
+      if (stepError) throw stepError;
     }
 
     const template = membershipTemplates[input.membershipTemplate];
@@ -329,13 +374,15 @@ const updateSchema = z.object({
   billingFrequency: z.enum(["monthly", "annual", "custom", "none"]),
   aiCreditAllowance: z.coerce.number().int().min(0),
   customPrice: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
-  tenantCanManageAiCredentials: z.boolean()
+  tenantCanManageAiCredentials: z.boolean(),
+  features: z.array(z.string())
 });
 
 export async function updateTenant(formData: FormData) {
   const parsed = updateSchema.safeParse({
     ...Object.fromEntries(formData),
-    tenantCanManageAiCredentials: formData.get("tenantCanManageAiCredentials") === "on"
+    tenantCanManageAiCredentials: formData.get("tenantCanManageAiCredentials") === "on",
+    features: formData.getAll("features").map(String)
   });
   if (!parsed.success) redirect(destination("Check the tenant subscription fields.", "error"));
   const supabase = await createClient();
@@ -368,6 +415,15 @@ export async function updateTenant(formData: FormData) {
     }, { onConflict: "tenant_id,key" })
   ]);
   if (tenantError || subscriptionError || aiCredentialPolicyError) redirect(destination(`Tenant update failed: ${(tenantError ?? subscriptionError ?? aiCredentialPolicyError)?.message}`, "error"));
+  const selectedFeatures = new Set(input.features);
+  const { error: entitlementError } = await admin.from("tenant_feature_entitlements").upsert(featureCatalog.map((feature) => ({
+    tenant_id: input.tenantId,
+    feature_key: feature.key,
+    enabled: selectedFeatures.has(feature.key),
+    source: "override",
+    updated_at: new Date().toISOString()
+  })), { onConflict: "tenant_id,feature_key" });
+  if (entitlementError) redirect(destination(`Tenant entitlement update failed: ${entitlementError.message}`, "error"));
   await admin.from("audit_logs").insert({
     tenant_id: input.tenantId, user_id: user.id, action: "platform.tenant.updated",
     entity_type: "tenant", entity_id: input.tenantId,

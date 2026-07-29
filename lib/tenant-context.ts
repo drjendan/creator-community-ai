@@ -5,7 +5,14 @@ import { createClient } from "@/lib/supabase/server";
 const managerRoles = [
   "tenant_owner",
   "tenant_admin",
-  "content_manager"
+  "communication_manager",
+  "content_manager",
+  "course_manager",
+  "event_manager",
+  "community_manager",
+  "community_moderator",
+  "analyst",
+  "support_staff"
 ];
 
 const administratorRoles = ["tenant_owner", "tenant_admin"];
@@ -57,4 +64,10 @@ export async function getActiveTenantAdministrator() {
   const { data: tenant } = await supabase.from("tenants").select("id,name,slug").eq("id", membership.tenant_id).single();
   if (!tenant) return null;
   return { supabase, user, tenant, role: membership.role as string };
+}
+
+export async function getActiveTenantCommunicator() {
+  const context = await getActiveTenantManager();
+  if (!context || !["tenant_owner", "tenant_admin", "communication_manager"].includes(context.role)) return null;
+  return context;
 }

@@ -30,9 +30,15 @@ export const featureCatalog = [
   { key: "community", label: "Community" },
   { key: "memberships", label: "Audience memberships" },
   { key: "creator_ai_studio", label: "Creator AI Studio" },
-  { key: "member_ai_assistant", label: "Member AI Assistant" },
-  { key: "recommendations", label: "Recommendations" },
-  { key: "administrator_ai_insights", label: "Administrator AI Insights" }
+  { key: "communication_hub", label: "Communication Hub" },
+  { key: "communication_announcements", label: "Communication · Announcements" },
+  { key: "communication_direct_messages", label: "Communication · Direct messages" },
+  { key: "communication_email_campaigns", label: "Communication · Email campaigns" },
+  { key: "communication_templates", label: "Communication · Templates" },
+  { key: "communication_segments", label: "Communication · Audience segments" },
+  { key: "communication_scheduling", label: "Communication · Scheduling" },
+  { key: "communication_reports", label: "Communication · Reports" },
+  { key: "communication_byop_email", label: "Communication · BYOP email" }
 ] as const;
 
 export const membershipTemplateIds = [

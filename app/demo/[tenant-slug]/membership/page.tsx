@@ -2,9 +2,12 @@ import { Users } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Card, Container, SectionHeading } from "@/components/ui";
 import { getPublicMembershipPlans } from "@/lib/content/member-community";
+import { notFound } from "next/navigation";
+import { tenantHasFeature } from "@/lib/tenant-site";
 
 export default async function MembershipPage({ params }: { params: Promise<{ "tenant-slug": string }> }) {
   const { "tenant-slug": slug } = await params;
+  if (!(await tenantHasFeature(slug, "memberships"))) notFound();
   const plans = await getPublicMembershipPlans(slug);
   return (
     <main className="py-16">

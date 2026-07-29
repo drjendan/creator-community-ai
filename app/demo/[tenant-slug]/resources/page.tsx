@@ -2,9 +2,12 @@
 import { Download, ExternalLink, FileText } from "lucide-react";
 import { Card, Container, SectionHeading } from "@/components/ui";
 import { getPublishedResources } from "@/lib/content/member-library";
+import { notFound } from "next/navigation";
+import { tenantHasFeature } from "@/lib/tenant-site";
 
 export default async function ResourcesPage({ params }: { params: Promise<{ "tenant-slug": string }> }) {
   const { "tenant-slug": tenantSlug } = await params;
+  if (!(await tenantHasFeature(tenantSlug, "resources"))) notFound();
   const resources = await getPublishedResources(tenantSlug);
   return (
     <main className="py-16">

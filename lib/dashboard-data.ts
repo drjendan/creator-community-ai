@@ -27,7 +27,7 @@ export async function getTenantDashboardData() {
   const [
     courses, events, upcomingEvents, resources, spaces, posts, plans, episodes, aiGenerations,
     memberships, publishedCourses, publishedEvents, publishedResources, publishedEpisodes,
-    brandingResult, domainResult, activityResult, aiProviderResult
+    brandingResult, domainResult, activityResult, aiProviderResult, entitlementResult, emailProviderResult
   ] = await Promise.all([
     countQuery(context, "courses", tenantId),
     countQuery(context, "events", tenantId),
@@ -46,7 +46,9 @@ export async function getTenantDashboardData() {
     supabase.from("tenant_branding").select("logo_url,footer_text").eq("tenant_id", tenantId).maybeSingle(),
     supabase.from("tenant_domains").select("id,status,is_primary").eq("tenant_id", tenantId).eq("status", "verified"),
     supabase.from("audit_logs").select("id,action,created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(5),
-    admin.from("ai_provider_settings").select("id").eq("tenant_id", tenantId).eq("enabled", true).eq("is_default", true).eq("verification_status", "verified").maybeSingle()
+    admin.from("ai_provider_settings").select("id").eq("tenant_id", tenantId).eq("enabled", true).eq("is_default", true).eq("verification_status", "verified").maybeSingle(),
+    supabase.from("tenant_feature_entitlements").select("feature_key,enabled").eq("tenant_id", tenantId),
+    supabase.from("tenant_communication_provider_configs").select("id").eq("tenant_id", tenantId).eq("is_active", true).eq("connection_status", "connected").maybeSingle()
   ]);
 
   const memberRows = memberships.data ?? [];
@@ -60,17 +62,19 @@ export async function getTenantDashboardData() {
     (publishedResources.count ?? 0) +
     (publishedEpisodes.count ?? 0);
   const platformPublished = publishedCount > 0 || (domainResult.data ?? []).some((domain) => domain.is_primary);
+  const enabledFeatures = new Set((entitlementResult.data ?? []).filter((item) => item.enabled).map((item) => item.feature_key));
 
   const checklist: ChecklistItem[] = [
     { label: "Organization Created", complete: true, href: "/dashboard/settings" },
     { label: "Upload Organization Logo", complete: Boolean(branding?.logo_url), href: "/dashboard/branding" },
     { label: "Complete Organization Profile", complete: Boolean(branding?.footer_text), href: "/dashboard/settings" },
-    { label: "Create Membership Plan", complete: (plans.count ?? 0) > 0, href: "/dashboard/memberships" },
-    { label: "Create First Course", complete: (courses.count ?? 0) > 0, href: "/dashboard/courses" },
-    { label: "Create First Event", complete: (events.count ?? 0) > 0, href: "/dashboard/events" },
-    { label: "Upload First Resource", complete: (resources.count ?? 0) > 0, href: "/dashboard/resources" },
+    ...(enabledFeatures.has("memberships") ? [{ label: "Create Membership Plan", complete: (plans.count ?? 0) > 0, href: "/dashboard/memberships" }] : []),
+    ...(enabledFeatures.has("courses") ? [{ label: "Create First Course", complete: (courses.count ?? 0) > 0, href: "/dashboard/courses" }] : []),
+    ...(enabledFeatures.has("events") ? [{ label: "Create First Event", complete: (events.count ?? 0) > 0, href: "/dashboard/events" }] : []),
+    ...(enabledFeatures.has("resources") ? [{ label: "Upload First Resource", complete: (resources.count ?? 0) > 0, href: "/dashboard/resources" }] : []),
     { label: "Invite Team Members", complete: teamCount > 1, href: "/dashboard/team" },
     { label: "Invite Members", complete: memberCount > 0, href: "/dashboard/members" },
+    ...(enabledFeatures.has("communication_hub") ? [{ label: "Connect Email", complete: Boolean(emailProviderResult.data), href: "/dashboard/communications/settings" }] : []),
     { label: "Publish Your Platform", complete: platformPublished, href: "/dashboard/settings" }
   ];
 
@@ -89,10 +93,15 @@ export async function getTenantDashboardData() {
     },
     checklist,
     progress: calculateOnboardingProgress(checklist),
-    aiQuickStart: {
+    aiQuickStart: enabledFeatures.has("creator_ai_studio") ? {
       ready: Boolean(aiProviderResult.data),
       canConfigure: role === "tenant_owner" || role === "tenant_admin"
-    },
+    } : null,
+    communicationQuickStart: enabledFeatures.has("communication_hub") ? {
+      ready: Boolean(emailProviderResult.data),
+      canConfigure: ["tenant_owner", "tenant_admin", "communication_manager"].includes(role)
+    } : null,
+    enabledFeatures: [...enabledFeatures],
     activity: (activityResult.data ?? []).map((entry) => ({
       id: entry.id,
       label: entry.action.split(".").at(-1)?.replaceAll("_", " ") ?? entry.action,

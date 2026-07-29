@@ -3,7 +3,11 @@ import type { Role } from "@/lib/roles";
 const tenantManagers = new Set<Role>([
   "tenant_owner",
   "tenant_admin",
+  "communication_manager",
   "content_manager",
+  "course_manager",
+  "event_manager",
+  "community_manager",
   "community_moderator"
 ]);
 
@@ -16,7 +20,11 @@ export function canManageTenant(role: Role) {
 }
 
 export function canManageContent(role: Role) {
-  return ["tenant_owner", "tenant_admin", "content_manager"].includes(role) || isPlatformAdmin(role);
+  return ["tenant_owner", "tenant_admin", "content_manager", "course_manager", "event_manager"].includes(role) || isPlatformAdmin(role);
+}
+
+export function canManageCommunications(role: Role) {
+  return ["tenant_owner", "tenant_admin", "communication_manager"].includes(role) || isPlatformAdmin(role);
 }
 
 export function canAccessPaidContent(input: {

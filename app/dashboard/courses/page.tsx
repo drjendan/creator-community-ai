@@ -1,2 +1,4 @@
 import { TenantContentManager } from "@/components/dashboard/TenantContentManager";
-export default function CoursesPage() { return <TenantContentManager type="courses" />; }
+import { notFound } from "next/navigation";
+import { requireTenantFeature } from "@/lib/feature-entitlements";
+export default async function CoursesPage() { if (!(await requireTenantFeature("courses"))) notFound(); return <TenantContentManager type="courses" />; }

@@ -2,9 +2,12 @@
 import { CalendarDays, ExternalLink, Video } from "lucide-react";
 import { Card, Container, SectionHeading } from "@/components/ui";
 import { getPublishedEvents } from "@/lib/content/member-library";
+import { notFound } from "next/navigation";
+import { tenantHasFeature } from "@/lib/tenant-site";
 
 export default async function EventsPage({ params }: { params: Promise<{ "tenant-slug": string }> }) {
   const { "tenant-slug": tenantSlug } = await params;
+  if (!(await tenantHasFeature(tenantSlug, "events"))) notFound();
   const events = await getPublishedEvents(tenantSlug);
   return (
     <main className="py-16">

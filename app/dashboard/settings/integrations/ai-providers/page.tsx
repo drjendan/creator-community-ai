@@ -4,6 +4,8 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { hasSupabaseEnv } from "@/lib/env";
 import { hasValidEncryptionConfiguration } from "@/lib/security/api-key-encryption";
 import { getActiveTenantAdministrator } from "@/lib/tenant-context";
+import { getTenantEntitlements } from "@/lib/feature-entitlements";
+import { notFound } from "next/navigation";
 
 export default async function TenantAiProvidersPage({ searchParams }: { searchParams: Promise<{ returnTo?: string }> }) {
   const { returnTo } = await searchParams;
@@ -17,6 +19,8 @@ export default async function TenantAiProvidersPage({ searchParams }: { searchPa
       />
     );
   }
+  const entitlements = await getTenantEntitlements(context.tenant.id, context.supabase);
+  if (entitlements.get("creator_ai_studio") !== true) notFound();
 
   const live = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY && hasValidEncryptionConfiguration());
   return <AiProviderSettings tenantName={context.tenant.name} live={live} context="tenant" returnTo={returnTo === "ai-quick-start" ? "/dashboard#ai-quick-start" : undefined} />;

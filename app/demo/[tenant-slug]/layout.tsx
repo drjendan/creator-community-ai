@@ -1,6 +1,20 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { TenantSiteShell } from "@/components/tenant/TenantSiteShell";
 import { getTenantSiteBySlug } from "@/lib/tenant-site";
+
+export async function generateMetadata({
+  params
+}: {
+  params: Promise<{ "tenant-slug": string }>;
+}): Promise<Metadata> {
+  const { "tenant-slug": slug } = await params;
+  const tenant = await getTenantSiteBySlug(slug);
+  return {
+    title: tenant?.name || "Organization",
+    icons: tenant?.faviconUrl ? { icon: tenant.faviconUrl } : undefined
+  };
+}
 
 export default async function TenantLayout({
   children,

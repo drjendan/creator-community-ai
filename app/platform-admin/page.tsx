@@ -1,5 +1,3 @@
-import { Activity } from "lucide-react";
-import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card, CardTitle } from "@/components/ui";
 import { getPlatformDashboardData } from "@/lib/dashboard-data";
@@ -23,8 +21,7 @@ export default async function PlatformAdminPage() {
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {stats.map(([label, value]) => <StatCard key={label} label={label} value={value} />)}
       </section>
-      <div className="grid gap-5 xl:grid-cols-2">
-        <EmptyState title="No platform trend chart available yet." description="This chart will populate after historical platform metrics are recorded." icon={Activity} />
+      <div>
         <Card>
           <CardTitle>Recent platform activity</CardTitle>
           {data.activity.length === 0 ? (

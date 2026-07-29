@@ -64,6 +64,15 @@ const featureCards = [
   }
 ] as const;
 
+const cardEntitlement = {
+  courses: "courses",
+  communityPosts: "community",
+  events: "events",
+  resources: "resources",
+  membershipPlans: "memberships",
+  aiGenerations: "creator_ai_studio"
+} as const;
+
 export default async function DashboardOverviewPage() {
   const data = await getTenantDashboardData();
 
@@ -134,7 +143,7 @@ export default async function DashboardOverviewPage() {
         </Card>
       </section>
 
-      <section id="ai-quick-start" className="scroll-mt-24">
+      {data.aiQuickStart && <section id="ai-quick-start" className="scroll-mt-24">
         <Card className={data.aiQuickStart.ready ? "border-success/30 bg-success-soft" : ""}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
@@ -160,7 +169,21 @@ export default async function DashboardOverviewPage() {
             </div>
           </div>
         </Card>
-      </section>
+      </section>}
+
+      {data.communicationQuickStart && (
+        <section>
+          <Card className={data.communicationQuickStart.ready ? "border-success/30 bg-success-soft" : ""}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-2xl">
+                <CardTitle>Connect Email</CardTitle>
+                <p className="mt-2 text-sm text-brand-600">{data.communicationQuickStart.ready ? "Your organization’s Resend provider is connected." : "Connect your organization’s Resend account to send welcome messages, announcements, newsletters, reminders, and campaigns. Your organization pays Resend directly."}</p>
+              </div>
+              {data.communicationQuickStart.canConfigure && <Button href="/dashboard/communications/settings">{data.communicationQuickStart.ready ? "Manage Email Provider" : "Connect Resend"}</Button>}
+            </div>
+          </Card>
+        </section>
+      )}
 
       <section>
         <div>
@@ -168,7 +191,7 @@ export default async function DashboardOverviewPage() {
           <p className="mt-2 text-sm text-brand-600">These cards reflect your organization&apos;s current data.</p>
         </div>
         <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {featureCards.map((feature) => {
+          {featureCards.filter((feature) => data.enabledFeatures.includes(cardEntitlement[feature.key])).map((feature) => {
             const count = data.counts[feature.key];
             return (
               <EmptyState

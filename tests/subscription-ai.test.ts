@@ -53,9 +53,10 @@ describe("AI credits and feature controls", () => {
     expect(canConsumeCredits(100, 95, 5)).toBe(true);
     expect(canConsumeCredits(100, 95, 6)).toBe(false);
   });
-  it("registers phased AI features independently", () => {
+  it("exposes only the operational AI feature entitlement", () => {
     const keys = featureCatalog.map((feature) => feature.key);
-    expect(keys).toEqual(expect.arrayContaining(["creator_ai_studio", "member_ai_assistant", "recommendations", "administrator_ai_insights"]));
+    expect(keys).toContain("creator_ai_studio");
+    expect(keys).not.toEqual(expect.arrayContaining(["member_ai_assistant", "recommendations", "administrator_ai_insights"]));
   });
 });
 

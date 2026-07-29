@@ -31,6 +31,7 @@ export async function getPublishedEpisodes(tenantSlug: string): Promise<MemberEp
     .select("id,title,description,video_url,audio_url,publish_date,access_level,created_at")
     .eq("tenant_id", tenant.id)
     .eq("status", "published")
+    .or("audio_url.not.is.null,video_url.not.is.null")
     .order("publish_date", { ascending: false, nullsFirst: false });
   if (error) return [];
 

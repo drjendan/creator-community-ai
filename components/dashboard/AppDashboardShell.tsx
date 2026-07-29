@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Building2, ChevronDown, ChevronRight, CircleHelp, LogOut, Menu, Plus, Search, UserRound } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight, CircleHelp, LogOut, Plus, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
@@ -30,7 +30,8 @@ function groupNavigation(nav: DashboardNavItem[]): DashboardNavGroup[] {
         ["Content", ["Podcast", "Courses", "Resources", "Events"]],
         ["Audience", ["Community", "Memberships", "Members"]],
         ["AI & insights", ["AI Studio", "AI Coach", "Analytics"]],
-        ["Workspace", ["Branding", "Team", "Billing", "AI Providers", "Settings"]]
+        ["Communication Hub", ["Communication Hub", "Announcements", "Messages", "Email Campaigns", "Templates", "Audience Segments", "Scheduled", "Automations", "Reports", "Email Provider"]],
+        ["Workspace", ["Branding", "Team", "AI Providers", "Settings"]]
       ];
 
   return definitions.map(([label, itemLabels]) => ({
@@ -144,7 +145,7 @@ export function UserMenu({ label = "Account" }: { label?: string }) {
   );
 }
 
-export function AppDashboardShell({ children, title, subtitle, nav, userLabel, platformAdminHref, tourIdentity }: {
+export function AppDashboardShell({ children, title, subtitle, nav, userLabel, platformAdminHref, tourIdentity, brand }: {
   children: React.ReactNode;
   title: string;
   subtitle: string;
@@ -152,6 +153,7 @@ export function AppDashboardShell({ children, title, subtitle, nav, userLabel, p
   userLabel?: string;
   platformAdminHref?: string;
   tourIdentity?: string;
+  brand?: { name?: string; tagline?: string; logoUrl?: string | null; primaryColor?: string };
 }) {
   const pathname = usePathname();
   const groups = groupNavigation(nav);
@@ -194,8 +196,8 @@ export function AppDashboardShell({ children, title, subtitle, nav, userLabel, p
   return (
     <div className="min-h-screen bg-brand-50">
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r border-brand-200 bg-brand-900 p-5 text-white lg:block" data-tour="main-navigation">
-          <BrandMark inverse />
+        <aside className="hidden w-64 shrink-0 border-r border-brand-200 bg-brand-900 p-5 text-white lg:block" style={brand?.primaryColor ? { backgroundColor: brand.primaryColor } : undefined} data-tour="main-navigation">
+          <BrandMark inverse name={brand?.name} tagline={brand?.tagline} logoUrl={brand?.logoUrl} />
           <div className="mt-8"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.14em] text-brand-300">{subtitle}</p><TenantSwitcher tenantName={title} platformAdminHref={platformAdminHref} /></div>
           <nav className="mt-7 space-y-1" aria-label={`${title} dashboard navigation`}>
             {groups.map((group) => {
@@ -231,12 +233,9 @@ export function AppDashboardShell({ children, title, subtitle, nav, userLabel, p
         <div className="min-w-0 flex-1">
           <header className="sticky top-0 z-20 border-b border-brand-200 bg-white/95 px-4 py-3 backdrop-blur md:px-8">
             <div className="flex items-center gap-3">
-              <button aria-label="Open dashboard navigation" className="rounded-lg border border-brand-200 p-2 lg:hidden"><Menu className="h-5 w-5" /></button>
               <div className="min-w-0 flex-1"><p className="truncate font-display font-bold text-brand-900">{title}</p><p className="hidden text-xs text-brand-500 sm:block">{subtitle}</p></div>
-              <label className="relative hidden w-full max-w-sm md:block"><span className="sr-only">Search dashboard</span><Search className="absolute left-3 top-2.5 h-4 w-4 text-brand-400" /><input className="w-full rounded-lg border border-brand-200 bg-brand-50 py-2 pl-9 pr-3 text-sm" placeholder="Search" /></label>
               <div className="flex items-center gap-2" data-tour="account-controls">
                 <button type="button" onClick={() => setTourSignal((value) => value + 1)} className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50" aria-label="Take a tour"><CircleHelp className="h-5 w-5" /><span className="hidden xl:inline">Tour</span></button>
-                <button aria-label="Notifications" className="rounded-lg border border-brand-200 p-2 text-brand-600"><Bell className="h-5 w-5" /></button>
                 <UserMenu label={userLabel} />
               </div>
             </div>
