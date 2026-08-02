@@ -483,6 +483,22 @@ with checks(migration, requirement, installed) as (
       and exists(select 1 from pg_proc where proname='approve_production_release_candidate')
       and exists(select 1 from pg_proc where proname='record_production_release_deployment')
       and exists(select 1 from pg_proc where proname='cancel_production_release_candidate')
+    ),
+    ('0041', 'zero demo data workspace boundary',
+      exists(select 1 from information_schema.columns where table_schema='public' and table_name='tenants' and column_name='workspace_kind')
+      and exists(select 1 from pg_proc where proname='assert_demo_workspace_seed_boundary')
+      and exists(select 1 from pg_indexes where schemaname='public' and indexname='tenants_single_demo_workspace_idx')
+    ),
+    ('0042', 'managed primary domains use active wildcard DNS and TLS',
+      not exists (
+        select 1
+        from public.tenant_domains domain
+        join public.tenants tenant on tenant.id=domain.tenant_id
+        where domain.domain_type='upnexx_subdomain'
+          and tenant.status in ('active','pending')
+          and tenant.deleted_at is null
+          and (domain.status<>'active' or domain.ssl_status<>'active')
+      )
     )
 )
 select

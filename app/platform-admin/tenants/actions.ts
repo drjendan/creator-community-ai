@@ -99,10 +99,16 @@ export async function createTenant(formData: FormData) {
     createdTenantId = tenant.id;
 
     const tenantHost = tenantHostname(tenant.slug);
+    const managedDomainActivatedAt = new Date().toISOString();
     const [{ error: domainError }, { error: stripeStateError }] = await Promise.all([
       admin.from("tenant_domains").insert({
         tenant_id: tenant.id, hostname: tenantHost, is_primary: true,
-        status: "pending", domain_type: "upnexx_subdomain", ssl_status: "pending"
+        status: "active", domain_type: "upnexx_subdomain", ssl_status: "active",
+        verified_at: managedDomainActivatedAt,
+        dns_verified_at: managedDomainActivatedAt,
+        ssl_verified_at: managedDomainActivatedAt,
+        last_checked_at: managedDomainActivatedAt,
+        failure_reason: ""
       }),
       admin.from("tenant_stripe_accounts").insert({ tenant_id: tenant.id, status: "not_connected" })
     ]);

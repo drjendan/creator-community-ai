@@ -21,8 +21,8 @@ if (dirtyPaths.length && allowDirty) warnings.push(`Dirty-worktree override used
 const migrationDir = resolve(root, "supabase", "migrations");
 const migrations = readdirSync(migrationDir).filter((name) => /^\d{4}_.+\.sql$/.test(name)).sort();
 const numbers = migrations.map((name) => Number(name.slice(0, 4)));
-for (let number = 1; number <= 41; number += 1) if (!numbers.includes(number)) blockers.push(`Migration ${String(number).padStart(4, "0")} is missing.`);
-if (numbers.at(-1) !== 41) blockers.push(`Expected migration 0041 to be latest; found ${String(numbers.at(-1) ?? 0).padStart(4, "0")}.`);
+for (let number = 1; number <= 42; number += 1) if (!numbers.includes(number)) blockers.push(`Migration ${String(number).padStart(4, "0")} is missing.`);
+if (numbers.at(-1) !== 42) blockers.push(`Expected migration 0042 to be latest; found ${String(numbers.at(-1) ?? 0).padStart(4, "0")}.`);
 if (new Set(numbers).size !== numbers.length) blockers.push("Duplicate migration numbers were found.");
 
 const tenantProvisioning = readFileSync(resolve(root, "app", "platform-admin", "tenants", "actions.ts"), "utf8");
@@ -68,7 +68,7 @@ const report = {
   productionOnly: true,
   commitSha,
   artifactSha256,
-  migrationRange: "0001-0041",
+  migrationRange: "0001-0042",
   zeroDemoDataPolicy: true,
   fileCount: files.length,
   dirtyPathCount: dirtyPaths.length,
