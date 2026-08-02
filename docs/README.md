@@ -66,6 +66,7 @@ Repository evidence—not aspiration—determines whether this documentation lab
 | [43 Milestone 22 Accessibility and Critical Paths](43_MILESTONE_22_ACCESSIBILITY_CRITICAL_PATHS.md) | Shared accessibility hardening, authenticated coverage, production evidence, and migration 0038 | In Review |
 | [44 Milestone 23 Custom Domains](44_MILESTONE_23_CUSTOM_DOMAINS.md) | Ownership challenges, DNS/SSL evidence, verified routing, canonical activation, rollback, and migration 0039 | In Review |
 | [45 Milestone 24 Production Release Package](45_MILESTONE_24_PRODUCTION_RELEASE_PACKAGE.md) | Deterministic artifact digest, frozen readiness evidence, owner approval, deployment evidence, and migration 0040 | In Review |
+| [46 Zero Demo Data Policy](46_ZERO_DEMO_DATA_POLICY.md) | Production customer-data policy, truthful empty states, demo boundary, and migration 0041 | Implemented |
 
 ## Recommended reading order
 

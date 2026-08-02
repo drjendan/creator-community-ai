@@ -6,7 +6,7 @@ import { getPlatformAnalyticsData } from "@/lib/dashboard-data";
 
 function StatusBreakdown({ values }: { values: Record<string, number> }) {
   const entries = Object.entries(values).sort(([left], [right]) => left.localeCompare(right));
-  if (entries.length === 0) return <p className="mt-4 text-sm text-brand-600">No records are available.</p>;
+  if (entries.length === 0) return <div className="mt-4 rounded-xl border border-dashed border-brand-200 bg-brand-50 p-6"><p className="font-semibold text-brand-900">No data available yet</p><p className="mt-2 text-sm text-brand-600">Production activity will appear here after it is recorded.</p></div>;
   return (
     <ul className="mt-4 space-y-3">
       {entries.map(([status, count]) => (

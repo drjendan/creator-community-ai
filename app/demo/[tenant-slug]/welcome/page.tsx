@@ -135,7 +135,7 @@ export default async function WelcomePage({
           </h1>
           <p className="mt-4 max-w-2xl leading-7 opacity-90">
             {context.branding?.welcome_message ||
-              "Your member home brings together the content and updates available to you."}
+              "Welcome to your community. Your organization is still setting up content and experiences."}
           </p>
         </section>
 

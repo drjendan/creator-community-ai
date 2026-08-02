@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarDays, Clock3, Headphones, PlayCircle, Search, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Card, Input } from "@/components/ui";
+import { EmptyState } from "@/components/feedback/EmptyState";
 import type { MemberEpisode } from "@/lib/content/member-episodes";
 import { formatDate } from "@/lib/format";
 
@@ -37,14 +38,14 @@ export function MemberEpisodeGrid({ episodes, tenantSlug }: { episodes: MemberEp
               </div>
               <p className="mt-5 text-xs font-bold uppercase tracking-wide text-accent-700">{episode.seasonNumber ? `Season ${episode.seasonNumber} · ` : ""}{episode.episodeNumber ? `Episode ${episode.episodeNumber}` : episode.videoUrl ? "Video episode" : "Audio episode"}</p>
               <h2 className="mt-2 font-display text-xl font-bold text-brand-900">{episode.title}</h2>
-              <p className="mt-2 line-clamp-2 text-sm leading-6 text-brand-600">{episode.description || "Watch this member episode."}</p>
+              {episode.description && <p className="mt-2 line-clamp-2 text-sm leading-6 text-brand-600">{episode.description}</p>}
               {!!episode.topics.length && <div className="mt-3 flex flex-wrap gap-1">{episode.topics.slice(0, 3).map((item) => <span key={item} className="rounded-full bg-accent-50 px-2 py-1 text-[10px] font-bold text-accent-700">{item}</span>)}</div>}
               <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold text-brand-500"><span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{formatDate(episode.publishDate)}</span>{episode.durationSeconds && <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />{formatDuration(episode.durationSeconds)}</span>}</div>
             </Card>
           </Link>
         ))}
       </div>
-      {filtered.length === 0 && <p className="mt-8 rounded-xl border border-brand-200 bg-white p-8 text-center text-brand-500">No episodes matched your search.</p>}
+      {filtered.length === 0 && <EmptyState className="mt-8" title={episodes.length ? "No episodes match these filters." : "No published episodes yet."} description={episodes.length ? "Clear or change the search filters to see other episodes." : "Published episodes will appear here after the organization adds them. Check back soon."} actionLabel={episodes.length ? undefined : "Return Home"} actionHref={episodes.length ? undefined : `/demo/${tenantSlug}`} icon={Headphones} />}
     </>
   );
 }

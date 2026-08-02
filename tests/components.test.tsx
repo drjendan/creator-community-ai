@@ -19,7 +19,7 @@ describe("navigation and reusable cards", () => {
     const { rerender } = render(<PricingCard plan={plans[1]} />);
     expect(screen.getByText("Most Popular")).toBeInTheDocument();
     expect(screen.getByText("$99.99")).toBeInTheDocument();
-    rerender(<EpisodeCard episode={demoEpisodes[0]} />);
+    rerender(<EpisodeCard episode={demoEpisodes[0]} baseHref="/test/episodes" />);
     expect(screen.getByText(demoEpisodes[0].title)).toBeInTheDocument();
     rerender(<MembershipCard plan={membershipPlans[1]} />);
     expect(screen.getByText("$9.99 per month")).toBeInTheDocument();

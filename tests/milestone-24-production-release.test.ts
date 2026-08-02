@@ -10,7 +10,8 @@ const preflight = read("scripts/production-preflight.mjs");
 describe("Milestone 24 production release package", () => {
   it("builds a deterministic production-only repository preflight", () => {
     expect(preflight).toContain('productionOnly: true');
-    expect(preflight).toContain('migrationRange: "0001-0040"');
+    expect(preflight).toContain('migrationRange: "0001-0041"');
+    expect(preflight).toContain('zeroDemoDataPolicy: true');
     expect(preflight).toContain("createHash(\"sha256\")");
     expect(preflight).toContain("The release worktree is not clean");
     const result = spawnSync(process.execPath, ["scripts/production-preflight.mjs", "--allow-dirty", "--json"], { encoding: "utf8" });

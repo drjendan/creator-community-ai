@@ -1,34 +1,31 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Gift, Sparkles } from "lucide-react";
 import { createTenant } from "@/app/platform-admin/tenants/actions";
 import { Button, Card, Field, Input, Select } from "@/components/ui";
-import {
-  featureCatalog, membershipTemplateIds, membershipTemplates,
-  platformPlanSlugs, recommendedMembershipTemplate, tenantTypeLabels, tenantTypes
-} from "@/lib/subscriptions";
+import { featureCatalog, platformPlanSlugs, tenantTypeLabels, tenantTypes } from "@/lib/subscriptions";
 import { validateTenantSlug } from "@/lib/tenant-domains";
 
 type FeatureKey = (typeof featureCatalog)[number]["key"];
 
 const steps = [
   "Organization", "Platform Subscription", "Feature Entitlements", "Branding",
-  "Audience Memberships", "Administrator", "Review"
+  "Administrator", "Review"
 ];
 
 type WizardState = {
   name: string; slug: string; tenantType: string; ownerEmail: string;
   planSlug: string; billingFrequency: string; subscriptionStatus: string;
   trialDays: string; customPrice: string; aiCreditAllowance: string;
-  primaryColor: string; accentColor: string; membershipTemplate: string; aiAccessMode: string;
+  primaryColor: string; accentColor: string; aiAccessMode: string;
 };
 
 const initialState: WizardState = {
   name: "", slug: "", tenantType: "podcaster", ownerEmail: "",
   planSlug: "creator", billingFrequency: "monthly", subscriptionStatus: "active",
   trialDays: "0", customPrice: "", aiCreditAllowance: "1000",
-  primaryColor: "#102a56", accentColor: "#b8e51d", membershipTemplate: "free_premium_vip",
+  primaryColor: "#102a56", accentColor: "#b8e51d",
   aiAccessMode: "tenant_adds_key"
 };
 
@@ -38,19 +35,9 @@ export function TenantCreationWizard({ authorized }: { authorized: boolean }) {
   const [features, setFeatures] = useState<Set<FeatureKey>>(() => new Set(featureCatalog
     .filter((feature) => feature.key !== "creator_ai_studio" && feature.key !== "communication_byop_email")
     .map((feature) => feature.key)));
-  const [membershipTemplateOverridden, setMembershipTemplateOverridden] = useState(false);
-  const selectedTemplate = membershipTemplates[state.membershipTemplate as keyof typeof membershipTemplates];
-  const recommendedTemplate = recommendedMembershipTemplate(state.tenantType as keyof typeof tenantTypeLabels);
-
-  useEffect(() => {
-    if (!membershipTemplateOverridden) {
-      setState((current) => ({ ...current, membershipTemplate: recommendedMembershipTemplate(current.tenantType as keyof typeof tenantTypeLabels) }));
-    }
-  }, [membershipTemplateOverridden, state.tenantType]);
-
   const canContinue = useMemo(() => {
     if (step === 0) return state.name.trim().length >= 2 && !validateTenantSlug(state.slug);
-    if (step === 5) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.ownerEmail);
+    if (step === 4) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.ownerEmail);
     return true;
   }, [state, step]);
 
@@ -93,9 +80,6 @@ export function TenantCreationWizard({ authorized }: { authorized: boolean }) {
         <input type="hidden" name="aiCreditAllowance" value={state.aiCreditAllowance} />
         <input type="hidden" name="primaryColor" value={state.primaryColor} />
         <input type="hidden" name="accentColor" value={state.accentColor} />
-        <input type="hidden" name="membershipTemplate" value={state.membershipTemplate} />
-        <input type="hidden" name="recommendedMembershipTemplate" value={recommendedTemplate} />
-        <input type="hidden" name="membershipTemplateOverridden" value={String(membershipTemplateOverridden)} />
         <input type="hidden" name="aiAccessMode" value={state.aiAccessMode} />
         <input type="hidden" name="features" value={[...features].join(",")} />
 
@@ -108,11 +92,9 @@ export function TenantCreationWizard({ authorized }: { authorized: boolean }) {
 
           {step === 3 && <div><h2 className="font-display text-2xl font-bold text-brand-900">Starting brand</h2><p className="mt-2 text-sm text-brand-500">The tenant administrator can change these colors and upload a logo later.</p><div className="mt-6 grid gap-5 sm:grid-cols-2"><Field label="Primary color" htmlFor="wizard-primary"><Input id="wizard-primary" type="color" value={state.primaryColor} onChange={(event) => update("primaryColor", event.target.value)} className="h-14 p-1" /></Field><Field label="Accent color" htmlFor="wizard-accent"><Input id="wizard-accent" type="color" value={state.accentColor} onChange={(event) => update("accentColor", event.target.value)} className="h-14 p-1" /></Field></div></div>}
 
-          {step === 4 && <div><h2 className="font-display text-2xl font-bold text-brand-900">Choose an Audience Membership Template</h2><p className="mt-2 text-sm text-brand-500">Choose a starting structure for this organization&apos;s audience memberships. All plans can be renamed, edited, disabled, or expanded later.</p><fieldset className="mt-6"><legend className="sr-only">Audience membership template</legend><div className="grid gap-3 md:grid-cols-2">{membershipTemplateIds.map((id) => { const template = membershipTemplates[id]; const selected = state.membershipTemplate === id; const recommended = recommendedTemplate === id; return <label key={id} className={`relative flex min-h-32 cursor-pointer flex-col rounded-xl border p-4 text-left transition focus-within:ring-2 focus-within:ring-accent-500 focus-within:ring-offset-2 ${selected ? "border-accent-500 bg-accent-50 ring-2 ring-accent-200" : "border-brand-200 hover:border-brand-300"}`}><input type="radio" name="membership-template-choice" value={id} checked={selected} onChange={() => { update("membershipTemplate", id); setMembershipTemplateOverridden(id !== recommendedTemplate); }} className="sr-only" aria-label={`${template.label}${recommended ? `, recommended for ${tenantTypeLabels[state.tenantType as keyof typeof tenantTypeLabels]}` : ""}`} /><span className="flex items-start justify-between gap-3"><span className="font-bold text-brand-900">{template.label}</span>{recommended && <span className="rounded-full bg-accent-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-accent-800">Recommended</span>}</span><span className="mt-2 block text-xs font-semibold text-brand-600">{template.plans.length ? template.plans.map((plan) => plan.name).join(" • ") : "Start with no plans"}</span><span className="mt-2 block text-xs leading-5 text-brand-500">{template.description}</span></label>; })}</div></fieldset><div className="mt-5 rounded-xl border border-brand-200 bg-brand-50 p-4"><p className="text-sm font-bold text-brand-900">You can customize these plans later.</p><p className="mt-1 text-xs leading-5 text-brand-600">Authorized tenant administrators can rename plans, change descriptions, benefits, pricing and billing, reorder or disable plans, and add more memberships. Plans with active members must be deactivated or reassigned before permanent deletion.</p></div></div>}
+          {step === 4 && <div><h2 className="font-display text-2xl font-bold text-brand-900">Tenant administrator invitation</h2><p className="mt-2 text-sm text-brand-500">An invitation will be sent if this email does not already belong to a UpNexx user.</p><div className="mt-6 max-w-xl"><Field label="Administrator email" htmlFor="wizard-email" required><Input id="wizard-email" type="email" value={state.ownerEmail} onChange={(event) => update("ownerEmail", event.target.value)} placeholder="creator@example.com" /></Field></div></div>}
 
-          {step === 5 && <div><h2 className="font-display text-2xl font-bold text-brand-900">Tenant administrator invitation</h2><p className="mt-2 text-sm text-brand-500">An invitation will be sent if this email does not already belong to a UpNexx user.</p><div className="mt-6 max-w-xl"><Field label="Administrator email" htmlFor="wizard-email" required><Input id="wizard-email" type="email" value={state.ownerEmail} onChange={(event) => update("ownerEmail", event.target.value)} placeholder="creator@example.com" /></Field></div></div>}
-
-          {step === 6 && <div><h2 className="font-display text-2xl font-bold text-brand-900">Review and create</h2><div className="mt-6 grid gap-4 md:grid-cols-2"><Review label="Tenant" value={`${state.name} (${state.slug})`} /><Review label="Business type" value={tenantTypeLabels[state.tenantType as keyof typeof tenantTypeLabels]} /><Review label="Platform subscription" value={`${state.planSlug} · ${state.subscriptionStatus} · ${state.billingFrequency}`} /><Review label="AI allowance" value={`${Number(state.aiCreditAllowance).toLocaleString()} credits/month`} /><Review label="AI access" value={state.aiAccessMode.replaceAll("_", " ")} /><Review label="Enabled features" value={`${features.size} selected`} /><Review label="Membership template" value={selectedTemplate.label} /><Review label="Administrator" value={state.ownerEmail} /><Review label="Billing status" value={state.planSlug === "complimentary" ? "Complimentary—no platform charge" : state.subscriptionStatus} /></div><div className="mt-5 rounded-xl border border-success/30 bg-success-soft p-4 text-sm text-success-strong"><div className="flex gap-2"><Gift className="h-5 w-5" /><strong>Ready to provision</strong></div><p className="mt-1">Creating the tenant also creates its subscription, feature overrides, membership template, AI allowance, branding, owner assignment, and audit record.</p></div></div>}
+          {step === 5 && <div><h2 className="font-display text-2xl font-bold text-brand-900">Review and create</h2><div className="mt-6 grid gap-4 md:grid-cols-2"><Review label="Tenant" value={`${state.name} (${state.slug})`} /><Review label="Business type" value={tenantTypeLabels[state.tenantType as keyof typeof tenantTypeLabels]} /><Review label="Platform subscription" value={`${state.planSlug} · ${state.subscriptionStatus} · ${state.billingFrequency}`} /><Review label="AI allowance" value={`${Number(state.aiCreditAllowance).toLocaleString()} credits/month`} /><Review label="AI access" value={state.aiAccessMode.replaceAll("_", " ")} /><Review label="Enabled features" value={`${features.size} selected`} /><Review label="Business data" value="Starts empty" /><Review label="Administrator" value={state.ownerEmail} /><Review label="Billing status" value={state.planSlug === "complimentary" ? "Complimentary—no platform charge" : state.subscriptionStatus} /></div><div className="mt-5 rounded-xl border border-success/30 bg-success-soft p-4 text-sm text-success-strong"><div className="flex gap-2"><Gift className="h-5 w-5" /><strong>Ready to provision</strong></div><p className="mt-1">Creating the tenant initializes only its subscription, roles and permissions, feature entitlements, workspace settings, branding defaults, owner assignment, and audit record. Members and business content start empty.</p></div></div>}
         </div>
 
         <div className="mt-7 flex items-center justify-between border-t border-brand-100 pt-5">

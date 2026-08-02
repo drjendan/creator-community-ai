@@ -4,9 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformAdministrator } from "@/lib/platform-context";
-import { databaseErrorMessage, isMissingEditableMembershipMetadata } from "@/lib/supabase/error";
-import { withoutEditableMembershipMetadata } from "@/lib/membership-plan-compat";
-import { featureCatalog, membershipTemplateIds, membershipTemplates, platformPlanSlugs, tenantTypes } from "@/lib/subscriptions";
+import { databaseErrorMessage } from "@/lib/supabase/error";
+import { featureCatalog, platformPlanSlugs, tenantTypes } from "@/lib/subscriptions";
 import { tenantHostname, tenantOrigin, validateTenantSlug } from "@/lib/tenant-domains";
 import { cookies } from "next/headers";
 
@@ -24,9 +23,6 @@ const tenantSchema = z.object({
   customPrice: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   aiCreditAllowance: z.coerce.number().int().min(0).max(100000000),
   features: z.array(z.string()),
-  membershipTemplate: z.enum(membershipTemplateIds),
-  recommendedMembershipTemplate: z.enum(membershipTemplateIds),
-  membershipTemplateOverridden: z.enum(["true", "false"]),
   aiAccessMode: z.enum(["tenant_adds_key", "configure_after_creation", "disabled"])
 }).superRefine((input, context) => {
   const error = validateTenantSlug(input.slug);
@@ -66,9 +62,6 @@ export async function createTenant(formData: FormData) {
     customPrice: formData.get("customPrice") ?? "",
     aiCreditAllowance: formData.get("aiCreditAllowance") ?? 0,
     features: String(formData.get("features") ?? "").split(",").filter(Boolean),
-    membershipTemplate: formData.get("membershipTemplate"),
-    recommendedMembershipTemplate: formData.get("recommendedMembershipTemplate"),
-    membershipTemplateOverridden: formData.get("membershipTemplateOverridden"),
     aiAccessMode: formData.get("aiAccessMode")
   });
 
@@ -87,7 +80,6 @@ export async function createTenant(formData: FormData) {
   let resultMessage = "";
   let resultType: "success" | "error" = "success";
   let createdTenantId: string | null = null;
-  let membershipMetadataDeferred = false;
 
   try {
     const { data: tenant, error: tenantError } = await admin
@@ -97,6 +89,7 @@ export async function createTenant(formData: FormData) {
         slug: input.slug,
         status: "pending",
         tenant_type: input.tenantType,
+        workspace_kind: "customer",
         updated_at: new Date().toISOString()
       })
       .select("id,name,slug")
@@ -239,101 +232,14 @@ export async function createTenant(formData: FormData) {
       if (entitlementError) throw entitlementError;
     }
 
-    if (selectedFeatures.has("communication_hub")) {
-      const starterTemplates = [
-        ["Welcome", "welcome", `Welcome to ${tenant.name}`, `Welcome to ${tenant.name}. Visit your member home to get started.`],
-        ["Announcement", "announcement", "An update from our organization", "We have an important update to share with you."],
-        ["Newsletter", "newsletter", "Your organization newsletter", "Here are the latest updates from our organization."],
-        ["Event Invitation", "event_invitation", "You are invited", "You are invited to join our upcoming event."],
-        ["Event Reminder", "event_reminder", "Event reminder", "This is a reminder about your upcoming event."],
-        ["New Content", "new_content", "New content is available", "New member content is now available."],
-        ["Course Enrollment", "course_enrollment", "Course enrollment confirmed", "Your course enrollment is confirmed."],
-        ["Course Reminder", "course_reminder", "Continue your course", "Return to your member home to continue learning."],
-        ["Membership Renewal", "membership_renewal", "Membership renewal reminder", "Review your membership renewal details in your member account."],
-        ["General Update", "general_update", "An update from our organization", "We have an update to share with you."]
-      ].map(([name, category, subject, body]) => ({
-        tenant_id: tenant.id,
-        name,
-        description: `Editable ${name.toLowerCase()} email template`,
-        category,
-        subject,
-        preview_text: "",
-        content_json: [{ type: "paragraph", text: body }],
-        html_content: `<p>${body}</p>`,
-        plain_text_content: body,
-        is_default: name === "Welcome",
-        is_active: true,
-        created_from_system_template: true,
-        created_by: user.id,
-        updated_by: user.id
-      }));
-      const { data: templates, error: templateSeedError } = await admin.from("email_templates").insert(starterTemplates).select("id,category");
-      if (templateSeedError) throw templateSeedError;
-      const welcomeTemplate = templates?.find((item) => item.category === "welcome");
-      const { data: automation, error: automationError } = await admin.from("communication_automations").insert({
-        tenant_id: tenant.id,
-        name: "Welcome new members",
-        trigger_type: "member_joined",
-        status: "inactive",
-        is_system_default: true,
-        created_by: user.id
-      }).select("id").single();
-      if (automationError) throw automationError;
-      const { error: stepError } = await admin.from("communication_automation_steps").insert([
-        { tenant_id: tenant.id, automation_id: automation.id, position: 0, action_type: "send_email", configuration: { template_id: welcomeTemplate?.id, button_label: "Visit Your Member Home", button_destination: `/demo/${tenant.slug}/welcome` } },
-        { tenant_id: tenant.id, automation_id: automation.id, position: 1, action_type: "create_message", configuration: { subject: `Welcome to ${tenant.name}` } }
-      ]);
-      if (stepError) throw stepError;
-    }
-
-    const template = membershipTemplates[input.membershipTemplate];
-    if (template.plans.length) {
-      const planRows = template.plans.map((membershipPlan) => {
-        const requiresPayments = membershipPlan.planType === "paid";
-        return {
-        tenant_id: tenant.id,
-        name: membershipPlan.name,
-        slug: `${membershipPlan.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${tenant.id.slice(0, 6)}`,
-        description: membershipPlan.description,
-        plan_type: membershipPlan.planType,
-        price_monthly: membershipPlan.monthlyPrice,
-        price_annual: membershipPlan.annualPrice,
-        currency: "USD",
-        community_access: membershipPlan.communityAccess,
-        ai_access: membershipPlan.aiAccess,
-        ai_monthly_allowance: membershipPlan.aiMonthlyAllowance,
-        visibility: "public",
-        status: requiresPayments ? "inactive" : "active",
-        sort_order: membershipPlan.sortOrder,
-        display_order: membershipPlan.sortOrder,
-        is_active: !requiresPayments,
-        payment_setup_required: requiresPayments,
-        is_editable: true,
-        created_from_template: true,
-        template_key: input.membershipTemplate,
-        benefits: [],
-        color: null,
-        access_rules: {}
-      };
-      });
-      const { error: membershipPlansError } = await admin.from("tenant_membership_plans").insert(planRows);
-      if (membershipPlansError && isMissingEditableMembershipMetadata(membershipPlansError)) {
-        membershipMetadataDeferred = true;
-        const legacyPlanRows = planRows.map(withoutEditableMembershipMetadata);
-        const { error: legacyMembershipPlansError } = await admin.from("tenant_membership_plans").insert(legacyPlanRows);
-        if (legacyMembershipPlansError) throw legacyMembershipPlansError;
-      } else if (membershipPlansError) {
-        throw membershipPlansError;
-      }
-    }
     const { error: membershipSetupError } = await admin.from("feature_flags").upsert(
       {
         tenant_id: tenant.id,
         key: "membership_setup_status",
-        enabled: template.plans.length > 0,
+        enabled: false,
         configuration: {
-          status: template.plans.length > 0 ? "starter_plans_created" : "not_started",
-          template_key: input.membershipTemplate
+          status: "not_started",
+          initialization_policy: "zero_demo_data"
         },
         updated_at: now.toISOString()
       },
@@ -382,10 +288,8 @@ export async function createTenant(formData: FormData) {
         tenant_type: input.tenantType,
         platform_plan: input.planSlug,
         complimentary,
-        membership_template: input.membershipTemplate,
-        recommended_membership_template: input.recommendedMembershipTemplate,
-        membership_template_recommendation_accepted: input.membershipTemplate === input.recommendedMembershipTemplate,
-        membership_template_overridden: input.membershipTemplateOverridden === "true",
+        workspace_kind: "customer",
+        business_data_initialized: false,
         ai_credit_allowance: input.aiCreditAllowance || plan.ai_credit_allowance,
         features: input.features,
         invitation_sent: invitationSent,
@@ -398,9 +302,6 @@ export async function createTenant(formData: FormData) {
     resultMessage = invitationSent
       ? `${input.name} was created at ${tenantOrigin(input.slug)} and an owner invitation was sent to ${input.ownerEmail}. Stripe can be connected later.`
       : `${input.name} was created at ${tenantOrigin(input.slug)} and ${input.ownerEmail} was assigned as its owner. Stripe can be connected later.`;
-    if (membershipMetadataDeferred) {
-      resultMessage += " Starter memberships were created with legacy fields; apply database migration 0008 to enable template metadata, colors, and benefits.";
-    }
   } catch (error) {
     const detail = databaseErrorMessage(error);
     if (createdTenantId) {

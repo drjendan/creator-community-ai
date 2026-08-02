@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CalendarDays, Clock3, Play } from "lucide-react";
 import { Card } from "@/components/ui";
 
-export function EpisodeCard({ episode, baseHref = "/demo/ai-at-work/episodes" }: { episode: { id: string; title: string; description: string; duration: string; category: string }; baseHref?: string }) {
+export function EpisodeCard({ episode, baseHref }: { episode: { id: string; title: string; description: string; duration: string; category: string }; baseHref: string }) {
   return <Card className="flex h-full flex-col"><div className="flex items-center justify-between"><span className="rounded-full bg-accent-50 px-3 py-1 text-xs font-bold text-accent-700">{episode.category}</span><span className="flex items-center gap-1 text-xs text-brand-500"><Clock3 className="h-3.5 w-3.5" />{episode.duration}</span></div><h3 className="mt-5 font-display text-xl font-bold text-brand-900">{episode.title}</h3><p className="mt-3 flex-1 text-sm leading-6 text-brand-600">{episode.description}</p><Link href={`${baseHref}/${episode.id}`} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-accent-700"><Play className="h-4 w-4 fill-current" /> Watch episode</Link></Card>;
 }
 export function CourseCard({ title, lessons, level }: { title: string; lessons: number; level: string }) {

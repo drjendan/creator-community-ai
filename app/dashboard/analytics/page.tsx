@@ -42,9 +42,12 @@ export default async function AnalyticsPage() {
       <Card>
         <CardTitle>Recorded reporting periods</CardTitle>
         {data.metrics.length === 0 ? (
-          <div className="mt-5">
-            <p className="font-semibold text-brand-900">No scheduled metric snapshots have been recorded.</p>
-            <p className="mt-2 text-sm text-brand-600">The operational totals above are calculated directly from current production records.</p>
+          <div className="mt-5 rounded-xl border border-dashed border-brand-200 bg-brand-50 p-6">
+            <div className="flex h-36 flex-col justify-between border-b border-l border-brand-200" aria-hidden="true">
+              {[0, 1, 2, 3].map((line) => <span key={line} className="block border-t border-brand-100" />)}
+            </div>
+            <p className="mt-5 font-semibold text-brand-900">No data available yet</p>
+            <p className="mt-2 text-sm text-brand-600">Analytics will appear after members begin using the workspace. UpNexx never fabricates reporting data.</p>
           </div>
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
