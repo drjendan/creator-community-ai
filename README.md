@@ -52,7 +52,7 @@ The development launcher is single-instance. If UpNexx is already listening on p
 1. Install Node.js 20 or later.
 2. Copy `.env.example` to `.env.local`.
 3. Add the Supabase project URL, anonymous key, and required server-only values.
-4. Apply every SQL migration in order through `0042_managed_domain_provisioning_fix.sql`. Migrations 0018–0042 add separate platform and tenant access controls, secure invitations and history, production billing, trusted AI and learning workflows, complete content/community experiences, governance and security controls, production-readiness evidence, isolation/quality verification, custom domains, the Zero Demo Data policy, and managed-domain provisioning consistency.
+4. Apply every SQL migration in order through `0043_managed_domain_trigger_guard.sql`. Migrations 0018–0043 add separate platform and tenant access controls, secure invitations and history, production billing, trusted AI and learning workflows, complete content/community experiences, governance and security controls, production-readiness evidence, isolation/quality verification, custom domains, the Zero Demo Data policy, and managed-domain provisioning consistency.
 5. Verify authentication redirect URLs, RLS, tenant roles, and the `tenant-assets` storage policies.
 6. Start the application.
 

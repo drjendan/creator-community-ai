@@ -499,6 +499,19 @@ with checks(migration, requirement, installed) as (
           and tenant.deleted_at is null
           and (domain.status<>'active' or domain.ssl_status<>'active')
       )
+    ),
+    ('0043', 'managed-domain lifecycle trigger normalizes stale inserts',
+      position(
+        'new.status:=''active'''
+        in pg_get_functiondef('public.validate_tenant_domain_lifecycle()'::regprocedure)
+      ) > 0
+      and position(
+        'primary_domain_must_be_active'
+        in pg_get_functiondef('public.validate_tenant_domain_lifecycle()'::regprocedure)
+      ) > position(
+        'new.status:=''active'''
+        in pg_get_functiondef('public.validate_tenant_domain_lifecycle()'::regprocedure)
+      )
     )
 )
 select
