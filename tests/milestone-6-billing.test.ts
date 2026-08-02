@@ -77,7 +77,8 @@ describe("Milestone 6 production billing contracts", () => {
       expect(route).toContain("stripeBillingEnabled()");
     }
     expect(billingPage).toContain("onlineBillingEnabled && <TenantPlatformBillingActions");
-    expect(membershipPage).toContain("paidBillingEnabled={onlineBillingEnabled}");
+    expect(membershipPage).toContain("/account#membership");
+    expect(membershipPage).not.toContain("MembershipCheckoutActions");
     expect(memberBilling.indexOf('plan.plan_type === "free"')).toBeLessThan(memberBilling.indexOf("Paid memberships are not available yet"));
   });
 });

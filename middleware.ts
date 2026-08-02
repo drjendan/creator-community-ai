@@ -4,8 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { resolveTenantIdentifier } from "@/lib/tenant";
 
 const tenantPublicPaths = new Set([
-  "/", "/welcome", "/membership", "/episodes", "/community", "/courses",
-  "/events", "/resources", "/messages", "/settings/communications", "/settings/data"
+  "/", "/welcome", "/library", "/membership", "/episodes", "/community", "/courses",
+  "/events", "/resources", "/messages", "/account", "/notifications", "/settings/communications", "/settings/data"
 ]);
 
 export async function middleware(request: NextRequest) {

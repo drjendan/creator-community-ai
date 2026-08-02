@@ -29,6 +29,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     userLabel = user?.user_metadata?.full_name || user?.email || "Account";
     showPlatformAdmin = Boolean(user && await getPlatformAccess());
     const context = await getActiveTenantManager();
+    if (user && !context) {
+      const platformAccess = await getPlatformAccess();
+      redirect(platformAccess ? "/platform-admin" : "/");
+    }
     if (context) {
       tenantName = context.tenant.name;
       trial = await getTenantTrialAccess(context.tenant.id);

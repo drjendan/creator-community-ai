@@ -2,13 +2,10 @@ import { MessageSquareText } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Card, Container, SectionHeading } from "@/components/ui";
 import { getAccessibleCommunitySpaces } from "@/lib/content/member-community";
-import { notFound } from "next/navigation";
-import { tenantHasFeature } from "@/lib/tenant-site";
 import Link from "next/link";
 
 export default async function CommunityPage({ params }: { params: Promise<{ "tenant-slug": string }> }) {
   const { "tenant-slug": slug } = await params;
-  if (!(await tenantHasFeature(slug, "community"))) notFound();
   const spaces = await getAccessibleCommunitySpaces(slug);
   return (
     <main className="py-16">

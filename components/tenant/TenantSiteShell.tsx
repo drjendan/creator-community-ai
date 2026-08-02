@@ -1,43 +1,35 @@
-﻿import Link from "next/link";
-import { Button, Container } from "@/components/ui";
 import type { Tenant } from "@/lib/tenant-types";
 import { TenantBranding } from "@/components/tenant/TenantBranding";
+import { MemberHeader } from "@/components/tenant/MemberHeader";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { poweredByText } from "@/lib/terminology";
+import { memberNavigation } from "@/lib/member-navigation";
+import { getMemberHeaderState } from "@/lib/member-experience";
 
-export function TenantSiteShell({ tenant, children }: { tenant: Tenant; children: React.ReactNode }) {
+export async function TenantSiteShell({ tenant, children }: { tenant: Tenant; children: React.ReactNode }) {
   const base = `/demo/${tenant.slug}`;
-  // Supabase brand assets are tenant-controlled public presentation files.
-  // eslint-disable-next-line @next/next/no-img-element
-  const tenantLogo = tenant.logoUrl ? <img src={tenant.logoUrl} alt={`${tenant.name} logo`} className="h-12 max-w-48 object-contain" /> : null;
-  const enabled = new Set(tenant.enabledFeatures ?? []);
-  const nav = [
-    ...(["podcasts", "courses", "resources", "events"].some((feature) => enabled.has(feature)) ? [["Content Library", `${base}/library`]] : []),
-    ...(enabled.has("community") ? [["Community", `${base}/community`]] : []),
-    ...(enabled.has("ai_coach") ? [["AI Coach", `${base}/ai-coach`]] : []),
-    ...(enabled.has("memberships") ? [["Membership", `${base}/membership`]] : []),
-    ...(tenant.communicationEnabled ? [["Welcome", `${base}/welcome`], ["Messages", `${base}/messages`], ["Preferences", `${base}/settings/communications`]] : []),
-    ["Data & privacy", `${base}/settings/data`]
-  ];
+  const { access, notifications } = await getMemberHeaderState(tenant.id, tenant.slug);
   return (
     <TenantBranding tenant={tenant}>
-    <div className="min-h-screen bg-brand-50">
-      <div className="bg-brand-900 py-2 text-center text-xs font-semibold text-brand-100">UpNexx · {poweredByText}</div>
-      <header className="border-b border-brand-200 bg-white">
-        <Container className="flex h-20 items-center justify-between gap-6">
-          <Link href={base} className="flex items-center gap-3 font-display text-xl font-extrabold text-brand-900">{tenantLogo ?? <>{tenant.name}<span className="text-accent-600">.</span></>}</Link>
-          <nav className="hidden items-center gap-6 lg:flex" aria-label={`${tenant.name} navigation`}>
-            {nav.map(([label, href]) => <Link key={href} href={href} className="text-sm font-semibold text-brand-700 hover:text-accent-700">{label}</Link>)}
-          </nav>
-          <div className="flex items-center gap-2">
-            <Button href={tenant.communicationEnabled ? `${base}/welcome` : base} size="sm">Member Home</Button>
-          </div>
-        </Container>
-      </header>
-      {children}
-      <AppFooter tenantName={tenant.name} tenantTagline={tenant.tagline} tenantSlug={tenant.slug} />
-    </div>
+      <div className="min-h-screen bg-brand-50">
+        <div className="bg-brand-900 py-2 text-center text-xs font-semibold text-brand-100">UpNexx · {poweredByText}</div>
+        <MemberHeader
+          tenantId={tenant.id}
+          tenantName={tenant.name}
+          tenantLogo={tenant.logoUrl}
+          base={base}
+          navigation={memberNavigation(base)}
+          access={access ? {
+            userLabel: access.userLabel,
+            canTenantAdmin: access.canTenantAdmin,
+            canPlatformAdmin: access.canPlatformAdmin,
+            canManageTenantAsPlatform: access.canManageTenantAsPlatform
+          } : null}
+          initialNotifications={notifications}
+        />
+        {children}
+        <AppFooter tenantName={tenant.name} tenantTagline={tenant.tagline} tenantSlug={tenant.slug} />
+      </div>
     </TenantBranding>
   );
 }
-

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { CalendarDays, FileText, Mail, UserRound } from "lucide-react";
 import { Card, Container } from "@/components/ui";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -34,7 +34,6 @@ export default async function WelcomePage({
       (item: { feature_key: string }) => item.feature_key
     )
   );
-  if (!enabled.has("communication_hub")) notFound();
 
   const [
     { data: announcements },
@@ -106,10 +105,7 @@ export default async function WelcomePage({
     ...(enabled.has("ai_coach")
       ? [["Ask the AI Coach", `/demo/${slug}/ai-coach`]]
       : []),
-    [
-      "Communication preferences",
-      `/demo/${slug}/settings/communications`
-    ]
+    ...(enabled.has("communication_hub") ? [["Communication preferences", `/demo/${slug}/settings/communications`]] : [])
   ];
 
   return (

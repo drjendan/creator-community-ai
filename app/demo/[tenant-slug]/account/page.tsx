@@ -1,0 +1,20 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { CreditCard, Settings, ShieldCheck, UserRound } from "lucide-react";
+import { Card, Container } from "@/components/ui";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getMemberExperienceAccess, hasMemberExperienceAuthorization } from "@/lib/member-experience";
+
+export default async function MemberAccountPage({ params }: { params: Promise<{ "tenant-slug": string }> }) {
+  const { "tenant-slug": slug } = await params;
+  const admin = createAdminClient();
+  const { data: tenant } = await admin.from("tenants").select("id,slug").eq("slug", slug).eq("status", "active").maybeSingle();
+  const access = tenant ? await getMemberExperienceAccess(tenant.id, tenant.slug) : null;
+  if (!tenant || !hasMemberExperienceAuthorization(access)) redirect(`/login?next=${encodeURIComponent(`/demo/${slug}/account`)}`);
+  const [{ data: profile }, { data: subscription }] = await Promise.all([
+    admin.from("profiles").select("full_name,avatar_url").eq("id", access!.user.id).maybeSingle(),
+    admin.from("member_subscriptions").select("status,starts_at,renewal_at,tenant_membership_plans(name,plan_type)").eq("tenant_id", tenant.id).eq("user_id", access!.user.id).maybeSingle()
+  ]);
+  const plan = subscription?.tenant_membership_plans as unknown as { name?: string; plan_type?: string } | null;
+  return <main className="py-12"><Container className="max-w-4xl space-y-6"><div><p className="text-xs font-bold uppercase tracking-wide text-accent-700">Profile</p><h1 className="mt-2 flex items-center gap-2 font-display text-3xl font-extrabold text-brand-900"><UserRound className="h-7 w-7" />My Account</h1><p className="mt-2 text-sm text-brand-600">Review your account and current workspace membership.</p></div><Card><h2 className="font-display text-xl font-bold text-brand-900">Account details</h2><dl className="mt-4 grid gap-4 sm:grid-cols-2"><div><dt className="text-xs font-bold uppercase text-brand-500">Name</dt><dd className="mt-1 font-semibold text-brand-900">{profile?.full_name || access!.userLabel}</dd></div><div><dt className="text-xs font-bold uppercase text-brand-500">Email</dt><dd className="mt-1 font-semibold text-brand-900">{access!.user.email || "Email unavailable"}</dd></div></dl></Card><Card id="membership" className="scroll-mt-28"><div className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-accent-700" /><h2 className="font-display text-xl font-bold text-brand-900">Billing or Membership Details</h2></div>{subscription ? <dl className="mt-4 grid gap-4 sm:grid-cols-3"><div><dt className="text-xs font-bold uppercase text-brand-500">Plan</dt><dd className="mt-1 font-semibold text-brand-900">{plan?.name || "Membership"}</dd></div><div><dt className="text-xs font-bold uppercase text-brand-500">Status</dt><dd className="mt-1 font-semibold capitalize text-brand-900">{subscription.status}</dd></div><div><dt className="text-xs font-bold uppercase text-brand-500">Renewal</dt><dd className="mt-1 font-semibold text-brand-900">{subscription.renewal_at ? new Date(subscription.renewal_at).toLocaleDateString() : "No renewal scheduled"}</dd></div></dl> : <p className="mt-4 text-sm text-brand-600">No audience membership is assigned to this account.</p>}</Card><div id="preferences" className="grid gap-5 sm:grid-cols-2"><Link href={`/demo/${slug}/settings/communications`} className="rounded-xl border border-brand-200 bg-white p-5 shadow-card"><Settings className="h-5 w-5 text-accent-700" /><h2 className="mt-3 font-display text-lg font-bold text-brand-900">Preferences</h2><p className="mt-2 text-sm text-brand-600">Manage the communications you receive.</p></Link><Link href={`/demo/${slug}/settings/data`} className="rounded-xl border border-brand-200 bg-white p-5 shadow-card"><ShieldCheck className="h-5 w-5 text-accent-700" /><h2 className="mt-3 font-display text-lg font-bold text-brand-900">Data &amp; Privacy</h2><p className="mt-2 text-sm text-brand-600">Review exports and data-rights requests.</p></Link></div></Container></main>;
+}

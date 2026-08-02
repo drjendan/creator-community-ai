@@ -13,7 +13,7 @@ export default async function MemberContentLibraryPage({ params, searchParams }:
   const query = (filters.q ?? "").trim().toLowerCase();
   const items = data.items.filter((item) => (!filters.type || filters.type === "all" || item.contentType === filters.type) && (!filters.category || filters.category === "all" || item.categoryIds.includes(filters.category)) && (!query || `${item.title} ${item.description}`.toLowerCase().includes(query)));
   return <main className="py-16"><Container>
-    <SectionHeading eyebrow="Content Library" title="Explore everything in one place." subtitle={`Browse the published episodes, courses, resources, and events available from ${data.tenant.name}.`} />
+    <SectionHeading eyebrow="Content Library" title="Explore Your Content" subtitle="Access courses, podcasts, videos, documents, templates, and other resources shared by this organization." />
     <form className="mt-8 grid gap-3 rounded-2xl border border-brand-200 bg-white p-4 md:grid-cols-[1fr_180px_220px_auto]" method="get">
       <label className="text-sm font-semibold text-brand-700">Search<input name="q" defaultValue={filters.q} className="mt-1 block w-full rounded-lg border border-brand-200 px-3 py-2" placeholder="Search the library" /></label>
       <label className="text-sm font-semibold text-brand-700">Type<select name="type" defaultValue={filters.type ?? "all"} className="mt-1 block w-full rounded-lg border border-brand-200 px-3 py-2"><option value="all">All types</option><option value="episodes">Episodes</option><option value="courses">Courses</option><option value="resources">Resources</option><option value="events">Events</option></select></label>
