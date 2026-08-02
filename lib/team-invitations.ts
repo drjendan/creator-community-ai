@@ -1,26 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
+import { tenantTeamRoleKeys, tenantTeamRoleLabels } from "@/lib/permissions";
 
-export const teamRoleOptions = [
-  ["tenant_admin", "Tenant administrator"],
-  ["communication_manager", "Communication manager"],
-  ["content_manager", "Content manager"],
-  ["course_manager", "Course manager"],
-  ["event_manager", "Event manager"],
-  ["community_manager", "Community manager"],
-  ["analyst", "Report viewer"],
-  ["support_staff", "Support staff"]
-] as const;
+export const teamRoleOptions = tenantTeamRoleKeys.map((role) => [
+  role,
+  tenantTeamRoleLabels[role]
+] as const);
 
-export const teamRoleKeys = [
-  "tenant_admin",
-  "communication_manager",
-  "content_manager",
-  "course_manager",
-  "event_manager",
-  "community_manager",
-  "analyst",
-  "support_staff"
-] as const;
+export const teamRoleKeys = tenantTeamRoleKeys;
 
 export function createInvitationToken() {
   const token = randomBytes(32).toString("base64url");
@@ -32,7 +18,11 @@ export function hashInvitationToken(token: string) {
 }
 
 export function invitationExpiresAt(now = Date.now()) {
-  return new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const configuredDays = Number(process.env.INVITATION_EXPIRATION_DAYS ?? 7);
+  const days = Number.isInteger(configuredDays) && configuredDays >= 1 && configuredDays <= 30
+    ? configuredDays
+    : 7;
+  return new Date(now + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 export function invitationCanBeAccepted(values: {

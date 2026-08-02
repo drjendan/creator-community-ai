@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { processCampaign } from "@/lib/communications/campaign-service";
 import { deliverMessage } from "@/lib/communications/message-service";
+import { processQueuedTransactionalDeliveries } from "@/lib/communications/reliable-delivery";
 
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
   const { data: messages } = await admin.from("communication_messages").select("id,tenant_id").eq("status", "scheduled").lte("scheduled_at", now).limit(25);
   const campaignResults = [];
   const messageResults = [];
+  const transactionalNotifications = await processQueuedTransactionalDeliveries(25);
   for (const campaign of campaigns ?? []) campaignResults.push(await processCampaign(admin, campaign.tenant_id, campaign.id, new URL(request.url).origin));
   for (const message of messages ?? []) messageResults.push(await deliverMessage(admin, message.tenant_id, message.id));
   await admin.from("communication_announcements").update({ status: "published", published_by: null, updated_at: now }).eq("status", "scheduled").lte("publish_at", now);
@@ -20,6 +22,7 @@ export async function GET(request: NextRequest) {
     processedCampaigns: campaignResults.length,
     processedMessages: messageResults.length,
     campaignResults,
-    messageResults
+    messageResults,
+    transactionalNotifications
   });
 }

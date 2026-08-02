@@ -106,7 +106,7 @@ No behavior should be claimed as implemented until signed webhook and access tes
 
 ## Stripe relationship
 
-Schema stores customer/subscription references for both layers. `package.json` contains no Stripe SDK and there are no checkout, portal, or webhook routes.
+Schema and application routes keep both layers separate. Stripe checkout, customer portal, Connect Standard onboarding, signed idempotent platform/connected-account webhooks, reconciliation fields, and access updates are implemented. Live keys, Prices, webhook registration, taxes/refunds policy, and controlled production transactions still require operator validation.
 
 Required decisions:
 

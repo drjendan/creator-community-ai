@@ -42,6 +42,30 @@ Repository evidence—not aspiration—determines whether this documentation lab
 | [14 Testing and QA](14_Testing_and_Quality_Assurance.md) | Current tests and release-quality strategy | In Review |
 | [15 Product Glossary](15_Product_Glossary.md) | Canonical product and technical terminology | Approved |
 | [16 Decision Log](16_Decision_Log.md) | Established decisions and a future decision template | In Review |
+| [22 Milestone 1 Stability and Navigation](22_MILESTONE_1_STABILITY_NAVIGATION.md) | Audit evidence, changes, validation, rollback, and production checklist | In Review |
+| [23 Milestone 2 Team and Permissions](23_MILESTONE_2_TEAM_PERMISSIONS.md) | Platform/Tenant Team completion, permission catalog, access history, and production checklist | In Review |
+| [24 Milestone 3 Admin Hubs and Analytics](24_MILESTONE_3_ADMIN_HUBS_ANALYTICS.md) | Tenant Admin Hub, permission-gated tenant analytics, and platform analytics | In Review |
+| [25 Milestone 4 Platform Operations](25_MILESTONE_4_PLATFORM_OPERATIONS.md) | Permission-gated platform communications visibility and audited support operations | In Review |
+| [26 Milestone 5 Content Library](26_MILESTONE_5_CONTENT_LIBRARY.md) | Unified tenant/member content discovery, cross-type categories, and migration 0021 | In Review |
+| [27 Milestone 6 Production Billing](27_MILESTONE_6_PRODUCTION_BILLING.md) | Platform subscriptions, connected-account memberships, Stripe webhooks, and migration 0022 | In Review |
+| [28 Milestone 7 Creator AI Studio](28_MILESTONE_7_CREATOR_AI_STUDIO.md) | Readable tenant sources, trusted generation, versioned drafts, credits, and migration 0023 | In Review |
+| [29 Milestone 8 Course Builder](29_MILESTONE_8_COURSE_BUILDER.md) | Complete curriculum, materials, assessments, member experience, and migration 0024 | In Review |
+| [30 Milestone 9 Member AI Coach](30_MILESTONE_9_MEMBER_AI_COACH.md) | Approved-source member guidance, citations, safety, privacy, limits, and migration 0025 | In Review |
+| [31 Milestone 10 Community](31_MILESTONE_10_COMMUNITY.md) | Member discussions, comments, reactions, reports, moderation, governance, and migration 0026 | In Review |
+| [32 Milestone 11 Podcast](32_MILESTONE_11_PODCAST.md) | Complete podcast authoring, discovery, learning experience, and migration 0027 | In Review |
+| [33 Milestone 12 Events](33_MILESTONE_12_EVENTS.md) | Event scheduling, registration, waitlists, attendance, replays, and migration 0028 | In Review |
+| [34 Milestone 13 Resources](34_MILESTONE_13_RESOURCES.md) | Resource metadata, versions, bookmarks, member discovery, and migration 0029 | In Review |
+| [35 Milestone 14 Member Directory](35_MILESTONE_14_MEMBER_DIRECTORY.md) | Audience invitations, profiles, lifecycle, plans, segments, notes, and migration 0030 | In Review |
+| [36 Milestone 15 Recommendations and Insights](36_MILESTONE_15_RECOMMENDATIONS_INSIGHTS.md) | Explainable member suggestions, qualified administrator signals, human review, and migration 0031 | In Review |
+| [37 Milestone 16 Data Governance and Rights](37_MILESTONE_16_DATA_GOVERNANCE.md) | Personal export, correction/closure review, audit export, and migration 0032 | In Review |
+| [38 Milestone 17 Abuse Controls and Security Events](38_MILESTONE_17_ABUSE_SECURITY.md) | Durable rate limits, privacy-safe fingerprints, security review, and migration 0033 | In Review |
+| [39 Milestone 18 Protected Member Media](39_MILESTONE_18_PROTECTED_MEDIA.md) | Stable authorized media delivery, private storage policies, backfill, and migration 0034 | In Review |
+| [40 Milestone 19 Operational Readiness](40_MILESTONE_19_OPERATIONAL_READINESS.md) | Production evidence gates, recovery verification, ownership, diagnostics, and migration 0035 | In Review |
+| [41 Milestone 20 Transactional Notification Reliability](41_MILESTONE_20_NOTIFICATION_RELIABILITY.md) | Encrypted durable delivery, retries, reconciliation, operator evidence, and migration 0036 | In Review |
+| [42 Milestone 21 Production RLS Verification](42_MILESTONE_21_RLS_VERIFICATION.md) | Live metadata checks, behavioral isolation evidence, strict finalization, and migration 0037 | In Review |
+| [43 Milestone 22 Accessibility and Critical Paths](43_MILESTONE_22_ACCESSIBILITY_CRITICAL_PATHS.md) | Shared accessibility hardening, authenticated coverage, production evidence, and migration 0038 | In Review |
+| [44 Milestone 23 Custom Domains](44_MILESTONE_23_CUSTOM_DOMAINS.md) | Ownership challenges, DNS/SSL evidence, verified routing, canonical activation, rollback, and migration 0039 | In Review |
+| [45 Milestone 24 Production Release Package](45_MILESTONE_24_PRODUCTION_RELEASE_PACKAGE.md) | Deterministic artifact digest, frozen readiness evidence, owner approval, deployment evidence, and migration 0040 | In Review |
 
 ## Recommended reading order
 
@@ -91,7 +115,7 @@ Earlier files such as `PRODUCT-SPEC.md`, `BUILD-PLAN.md`, `architecture.md`, `da
 - Pricing and plan limits require market validation.
 - Legal policies, retention periods, incident contacts, and recovery objectives are not approved.
 - Stripe, Resend, Sentry, PostHog, and production AI-provider accounts are not evidenced as integrated.
-- Live RLS verification against a staging database is still required.
+- Live RLS verification will run against production during the approved combined release window.
 - Named document owners and review cadence remain unassigned.
 
 ## Open questions
@@ -100,4 +124,3 @@ Earlier files such as `PRODUCT-SPEC.md`, `BUILD-PLAN.md`, `architecture.md`, `da
 - Which first-customer segment and use case will anchor Version 1.0?
 - Is Vercel the confirmed production host and Cloudflare the confirmed DNS provider?
 - What retention, recovery, and support service levels are required?
-

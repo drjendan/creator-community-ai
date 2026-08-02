@@ -1,8 +1,12 @@
 import { notFound } from "next/navigation";
 import { PlatformBrandingManager } from "@/components/platform/PlatformBrandingManager";
+import { getPlatformAdministrator } from "@/lib/platform-context";
 
 export default async function PlatformSectionPage({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;
-  if (section === "platform-settings") return <PlatformBrandingManager />;
+  if (section === "platform-settings") {
+    if (!(await getPlatformAdministrator("platform.settings.manage"))) notFound();
+    return <PlatformBrandingManager />;
+  }
   notFound();
 }

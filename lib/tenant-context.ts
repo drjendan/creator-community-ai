@@ -1,12 +1,19 @@
 import "server-only";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  tenantPermissionKeys,
+  tenantRoleHasPermission,
+  type TenantPermission
+} from "@/lib/permissions";
+import { getPlatformAccess } from "@/lib/platform-context";
 
 const managerRoles = [
   "tenant_owner",
   "tenant_admin",
+  "billing_admin",
   "communication_manager",
   "content_manager",
   "course_manager",
@@ -14,7 +21,10 @@ const managerRoles = [
   "community_manager",
   "community_moderator",
   "analyst",
-  "support_staff"
+  "support_staff",
+  "support_manager",
+  "contributor",
+  "viewer"
 ];
 
 const administratorRoles = ["tenant_owner", "tenant_admin"];
@@ -38,6 +48,27 @@ async function getTenantContext(roles: string[]) {
       .maybeSingle();
     if (!scopedTenant) return null;
     scopedTenantId = scopedTenant.id;
+  }
+
+  const platformAccess =
+    roles === managerRoles || roles === administratorRoles
+      ? await getPlatformAccess()
+      : null;
+  if (platformAccess?.permissions.has("platform.tenants.manage")) {
+    const tenantId = scopedTenantId ?? (await cookies()).get("upnexx-platform-tenant")?.value;
+    if (tenantId) {
+      const admin = createAdminClient();
+      const { data: tenant } = await admin.from("tenants").select("id,name,slug,status").eq("id", tenantId).maybeSingle();
+      if (tenant?.status === "active") {
+        return {
+          supabase: admin,
+          user,
+          tenant,
+          role: "tenant_admin",
+          platformRole: platformAccess.role
+        };
+      }
+    }
   }
 
   let membershipQuery = supabase
@@ -81,8 +112,35 @@ export async function getActiveTenantAdministrator() {
   return getTenantContext(administratorRoles);
 }
 
-export async function getActiveTenantCommunicator() {
+export async function getActiveTenantWithPermission(permission: TenantPermission) {
   const context = await getActiveTenantManager();
-  if (!context || !["tenant_owner", "tenant_admin", "communication_manager"].includes(context.role)) return null;
-  return context;
+  if (!context) return null;
+  const permissions = await getTenantPermissionSet(context.role);
+  return permissions.has(permission) ? context : null;
+}
+
+export async function getTenantPermissionSet(role: string) {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("tenant_role_permissions")
+    .select("permission_key")
+    .eq("role_key", role);
+  if (!error) {
+    return new Set(
+      (data ?? [])
+        .map((row) => row.permission_key)
+        .filter((permission): permission is TenantPermission =>
+          tenantPermissionKeys.includes(permission as TenantPermission)
+        )
+    );
+  }
+  return new Set(
+    tenantPermissionKeys.filter((permission) =>
+      tenantRoleHasPermission(role, permission)
+    )
+  );
+}
+
+export async function getActiveTenantCommunicator() {
+  return getActiveTenantWithPermission("tenant.communications.manage");
 }

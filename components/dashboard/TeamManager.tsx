@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Copy, MailPlus, Search, UserPlus } from "lucide-react";
+import { MailPlus, Search, ShieldCheck, UserPlus } from "lucide-react";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
+import { tenantTeamRoleKeys, tenantTeamRoleLabels } from "@/lib/permissions";
 
 type Person = {
   id: string;
@@ -25,16 +26,13 @@ type Invitation = {
   delivery_error?: string;
 };
 
-const roleOptions = [
-  ["tenant_admin", "Tenant administrator"],
-  ["communication_manager", "Communication manager"],
-  ["content_manager", "Content manager"],
-  ["course_manager", "Course manager"],
-  ["event_manager", "Event manager"],
-  ["community_manager", "Community manager"],
-  ["analyst", "Report viewer"],
-  ["support_staff", "Support staff"]
-] as const;
+type AccessHistoryItem = {
+  id: string;
+  action: string;
+  created_at: string;
+};
+
+const roleOptions = tenantTeamRoleKeys.map((role) => [role, tenantTeamRoleLabels[role]] as const);
 
 function roleLabel(role: string) {
   return (
@@ -46,13 +44,13 @@ function roleLabel(role: string) {
 export function TeamManager() {
   const [people, setPeople] = useState<Person[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [history, setHistory] = useState<AccessHistoryItem[]>([]);
   const [currentUserId, setCurrentUserId] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [invitationLink, setInvitationLink] = useState("");
 
   const load = useCallback(async () => {
     const response = await fetch("/api/team", { cache: "no-store" });
@@ -60,6 +58,7 @@ export function TeamManager() {
     if (response.ok) {
       setPeople(result.people ?? []);
       setInvitations(result.invitations ?? []);
+      setHistory(result.history ?? []);
       setCurrentUserId(result.currentUserId ?? "");
     } else {
       setMessage(result.error ?? "Unable to load the team.");
@@ -91,7 +90,6 @@ export function TeamManager() {
     event.preventDefault();
     setBusy(true);
     setMessage("");
-    setInvitationLink("");
     const form = event.currentTarget;
     const data = new FormData(form);
     const response = await fetch("/api/team", {
@@ -102,18 +100,12 @@ export function TeamManager() {
         lastName: data.get("lastName"),
         email: data.get("email"),
         role: data.get("role"),
-        personalMessage: data.get("personalMessage"),
-        sendEmail: data.get("sendEmail") === "on"
+        personalMessage: data.get("personalMessage")
       })
     });
     const result = await response.json();
     if (response.ok) {
-      setMessage(
-        result.status === "sent"
-          ? "Invitation email sent."
-          : "Pending invitation saved. Copy the secure invitation link below."
-      );
-      setInvitationLink(result.invitationLink ?? "");
+      setMessage("Invitation email sent.");
       form.reset();
       await load();
     } else {
@@ -148,7 +140,7 @@ export function TeamManager() {
     const result = await response.json();
     setMessage(
       response.ok
-        ? "Team access updated."
+        ? result.warning || "Team access updated."
         : result.error ?? "Unable to update access."
     );
     if (response.ok) await load();
@@ -169,7 +161,7 @@ export function TeamManager() {
     const result = await response.json();
     setMessage(
       response.ok
-        ? "Pending invitation role updated."
+        ? result.warning || "Pending invitation role updated."
         : result.error ?? "Unable to update the invitation."
     );
     if (response.ok) await load();
@@ -177,27 +169,16 @@ export function TeamManager() {
 
   async function invitationAction(
     invitationId: string,
-    action: "resend" | "copy_link"
+    action: "resend"
   ) {
     setBusy(true);
-    setInvitationLink("");
     const response = await fetch("/api/team", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ invitationId, action })
     });
     const result = await response.json();
-    if (response.ok && result.invitationLink) {
-      setInvitationLink(result.invitationLink);
-      await navigator.clipboard?.writeText(result.invitationLink);
-      setMessage("A new secure invitation link was created and copied.");
-    } else {
-      setMessage(
-        response.ok
-          ? "Invitation resent."
-          : result.error ?? "Unable to update the invitation."
-      );
-    }
+    setMessage(response.ok ? "Invitation resent." : result.error ?? "Unable to update the invitation.");
     if (response.ok) await load();
     setBusy(false);
   }
@@ -244,27 +225,6 @@ export function TeamManager() {
           {message}
         </p>
       )}
-      {invitationLink && (
-        <Card>
-          <Field label="Secure invitation link" htmlFor="invitation-link">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input id="invitation-link" value={invitationLink} readOnly />
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => void navigator.clipboard?.writeText(invitationLink)}
-              >
-                <Copy className="h-4 w-4" />
-                Copy
-              </Button>
-            </div>
-          </Field>
-          <p className="mt-2 text-xs text-brand-500">
-            Generating another link invalidates this one.
-          </p>
-        </Card>
-      )}
-
       <Card id="invite-team-member">
         <h2 className="font-display text-xl font-bold text-brand-900">
           Invite Team Member
@@ -295,15 +255,6 @@ export function TeamManager() {
           >
             <Textarea id="team-message" name="personalMessage" maxLength={1000} />
           </Field>
-          <label className="flex items-center gap-3 text-sm font-semibold text-brand-700 md:col-span-2">
-            <input
-              type="checkbox"
-              name="sendEmail"
-              defaultChecked
-              className="h-4 w-4"
-            />
-            Send invitation email now
-          </label>
           <div className="flex flex-wrap gap-3 md:col-span-2">
             <Button type="submit" disabled={busy}>
               <MailPlus className="h-4 w-4" />
@@ -368,14 +319,6 @@ export function TeamManager() {
                   <Button
                     type="button"
                     size="sm"
-                    variant="secondary"
-                    onClick={() => void invitationAction(invitation.id, "copy_link")}
-                  >
-                    Copy invitation link
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
                     variant="destructive"
                     onClick={() => void revoke(invitation.id)}
                   >
@@ -388,6 +331,48 @@ export function TeamManager() {
         ) : (
           <p className="mt-4 text-sm text-brand-600">
             No pending invitations.
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-accent-700" /><h2 className="font-display text-xl font-bold text-brand-900">Roles &amp; Permissions</h2></div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {roleOptions.map(([role, label]) => (
+            <div key={role} className="rounded-xl border border-brand-100 p-4">
+              <p className="font-bold text-brand-900">{label}</p>
+              <p className="mt-1 text-xs text-brand-500">{role === "tenant_admin" ? "Team, content, communications, support, and analytics administration." : role === "billing_admin" ? "Organization billing administration." : role === "communication_manager" ? "Communication Hub administration." : role === "content_manager" ? "Content administration." : role === "support_manager" ? "Tenant support administration." : role === "analyst" ? "Analytics and reporting access." : role === "contributor" ? "Create and edit assigned content." : "Read-only workspace access."}</p>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="font-display text-xl font-bold text-brand-900">
+          Access History
+        </h2>
+        {history.length ? (
+          <div className="mt-4 divide-y divide-brand-100">
+            {history.slice(0, 25).map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"
+              >
+                <span className="font-semibold capitalize text-brand-800">
+                  {item.action.replaceAll(".", " ").replaceAll("_", " ")}
+                </span>
+                <time
+                  className="text-xs text-brand-500"
+                  dateTime={item.created_at}
+                >
+                  {new Date(item.created_at).toLocaleString()}
+                </time>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-brand-600">
+            No team access changes recorded yet.
           </p>
         )}
       </Card>

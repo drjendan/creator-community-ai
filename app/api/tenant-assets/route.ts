@@ -4,6 +4,8 @@ import { getActiveTenantManager } from "@/lib/tenant-context";
 import { getTenantEntitlements } from "@/lib/feature-entitlements";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extensionForImageType, validateBrandImage } from "@/lib/image-validation";
+import { trialMutationError } from "@/lib/trials";
+import { enforceRateLimit, rateLimitError } from "@/lib/rate-limit";
 
 const allowedFolders = new Set(["podcast", "courses", "events", "resources", "community", "branding", "communications"]);
 const allowedTypes = new Set([
@@ -21,10 +23,15 @@ const allowedTypes = new Set([
 export async function POST(request: NextRequest) {
   const context = await getActiveTenantManager();
   if (!context) return NextResponse.json({ error: "No manageable tenant is assigned to this account." }, { status: 403 });
+  const trialError = await trialMutationError(context.tenant.id, "upload");
+  if (trialError) return NextResponse.json({ error: trialError }, { status: 402 });
+  const limit = await enforceRateLimit({ request, scope: "tenant.media.upload", limit: 60, windowSeconds: 3600, tenantId: context.tenant.id, userId: context.user.id }); if (!limit.allowed) { const failure = rateLimitError(limit); return NextResponse.json({ error: failure.error }, { status: failure.status, headers: failure.headers }); }
 
   const formData = await request.formData();
   const file = formData.get("file");
   const folder = String(formData.get("folder") ?? "resources");
+  const requestedRole = String(formData.get("assetRole") ?? "content");
+  const assetRole = ["content", "secondary", "cover", "attachment"].includes(requestedRole) ? requestedRole : "content";
   if (!(file instanceof File)) return NextResponse.json({ error: "Choose a file to upload." }, { status: 400 });
   if (!allowedFolders.has(folder)) return NextResponse.json({ error: "Invalid upload folder." }, { status: 400 });
   const authorized = folder === "branding"
@@ -70,9 +77,7 @@ export async function POST(request: NextRequest) {
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data: signed, error: signedError } = await context.supabase.storage
-    .from("tenant-assets")
-    .createSignedUrl(path, 60 * 60 * 24 * 7);
-  if (signedError) return NextResponse.json({ error: signedError.message }, { status: 500 });
-  return NextResponse.json({ path, url: signed.signedUrl, name: file.name });
+  const admin = createAdminClient(); const { data: asset, error: registryError } = await admin.from("protected_media_assets").insert({ tenant_id: context.tenant.id, bucket_id: "tenant-assets", object_path: path, original_name: file.name.slice(0, 255), mime_type: file.type, size_bytes: file.size, folder, asset_role: assetRole, access_level: "member", status: "pending", created_by: context.user.id }).select("id").single();
+  if (registryError || !asset) { await context.supabase.storage.from("tenant-assets").remove([path]); return NextResponse.json({ error: /protected_media_assets|schema cache/i.test(registryError?.message ?? "") ? "Protected media migration 0034 is required." : "Unable to register the protected upload." }, { status: 500 }); }
+  return NextResponse.json({ path, assetId: asset.id, url: `/api/media/${asset.id}`, name: file.name });
 }

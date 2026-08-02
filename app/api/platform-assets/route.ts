@@ -13,7 +13,7 @@ const imageTypes = new Set([
 ]);
 
 export async function POST(request: NextRequest) {
-  if (!(await getPlatformAdministrator())) {
+  if (!(await getPlatformAdministrator("platform.settings.manage"))) {
     return NextResponse.json(
       { error: "Platform administrator access is required." },
       { status: 403 }

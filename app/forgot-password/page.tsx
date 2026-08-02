@@ -5,6 +5,8 @@ import { FormEvent, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { Button, Card, Container, Field, Input } from "@/components/ui";
 import { createPasswordRecoveryClient } from "@/lib/supabase/client";
+import { AuthLegalLinks } from "@/components/legal/AuthLegalLinks";
+import { logError, logInfo } from "@/lib/logging";
 
 const successMessage = "Password reset email sent. Please check your inbox and spam folder.";
 
@@ -19,11 +21,10 @@ export default function ForgotPasswordPage() {
 
   async function sendRecoveryEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    console.info("[Password recovery] Button clicked");
+    logInfo("auth.password_recovery.requested");
 
     const submittedEmail = email.trim();
     setEmail(submittedEmail);
-    console.info("[Password recovery] Email submitted");
 
     if (!submittedEmail) {
       setStatus("error");
@@ -38,7 +39,7 @@ export default function ForgotPasswordPage() {
 
     setStatus("sending");
     setMessage("");
-    console.info("[Password recovery] Supabase recovery request started");
+    logInfo("auth.password_recovery.provider_request_started");
 
     try {
       const supabase = createPasswordRecoveryClient();
@@ -47,17 +48,17 @@ export default function ForgotPasswordPage() {
       });
 
       if (error) {
-        console.error("[Password recovery] Error response", error.message);
+        logError("auth.password_recovery.provider_rejected", error);
         setStatus("error");
         setMessage(error.message);
         return;
       }
 
-      console.info("[Password recovery] Success response");
+      logInfo("auth.password_recovery.provider_request_succeeded");
       setStatus("success");
       setMessage(successMessage);
     } catch (error) {
-      console.error("[Password recovery] Unexpected error", error);
+      logError("auth.password_recovery.unexpected_error", error);
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Unable to send the password reset email.");
     }
@@ -110,6 +111,7 @@ export default function ForgotPasswordPage() {
           <Link href="/login" className="mt-5 block text-center text-sm font-semibold text-accent-700">
             Return to sign in
           </Link>
+          <AuthLegalLinks />
         </Card>
       </Container>
     </main>

@@ -1,12 +1,14 @@
 import { Container } from "@/components/ui";
 import type { LandingContent } from "@/lib/landing-content";
+import { AppFooter } from "@/components/layout/AppFooter";
 
 export function Footer({
   tenant,
   footer
 }: Pick<LandingContent, "tenant" | "footer">) {
   return (
-    <footer className="border-t border-brand-200 bg-brand-50 py-12">
+    <>
+    <section className="border-t border-brand-200 bg-brand-50 py-12" aria-label="Website footer links">
       <Container className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <p className="font-display text-lg font-semibold text-brand-900">{tenant.name}</p>
@@ -32,6 +34,8 @@ export function Footer({
       <Container className="mt-10 border-t border-brand-200 pt-6">
         <p className="text-xs text-brand-500">{footer.platformNote}</p>
       </Container>
-    </footer>
+    </section>
+    <AppFooter />
+    </>
   );
 }

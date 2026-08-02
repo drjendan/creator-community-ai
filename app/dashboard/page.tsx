@@ -4,8 +4,10 @@ import {
   Sparkles, Users
 } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { StatCard } from "@/components/dashboard/StatCard";
 import { Button, Card, CardTitle } from "@/components/ui";
 import { getTenantDashboardData } from "@/lib/dashboard-data";
+import { terminology } from "@/lib/terminology";
 
 const featureCards = [
   {
@@ -37,11 +39,11 @@ const featureCards = [
   },
   {
     key: "resources",
-    title: "Resources",
-    empty: "No resources uploaded.",
-    singular: "resource",
-    action: "Upload Resource",
-    href: "/dashboard/resources",
+    title: terminology.contentLibrary,
+    empty: "No content library items uploaded.",
+    singular: "content library item",
+    action: "Open Content Library",
+    href: "/dashboard/content-library",
     icon: FileText
   },
   {
@@ -88,6 +90,17 @@ export default async function DashboardOverviewPage() {
 
   return (
     <div className="space-y-8">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wide text-accent-700">Tenant operations</p>
+        <h1 className="mt-2 font-display text-3xl font-extrabold text-brand-900">{terminology.tenantAdminHub}</h1>
+        <p className="mt-2 text-sm text-brand-600">Manage {data.tenant.name} from current production records.</p>
+      </div>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Tenant workspace summary">
+        <StatCard label="Active members" value={data.counts.members} />
+        <StatCard label="Team members" value={data.counts.teamMembers} />
+        <StatCard label="Published content" value={data.counts.publishedContent} />
+        <StatCard label="Upcoming events" value={data.counts.events} />
+      </section>
       <section className="upnexx-hero overflow-hidden rounded-3xl px-7 py-9 text-white shadow-pop md:px-10">
         <p className="text-xs font-bold uppercase tracking-[.16em] text-highlight-300">Welcome to UpNexx!</p>
         <h1 className="mt-3 font-display text-3xl font-extrabold md:text-4xl">
@@ -103,7 +116,7 @@ export default async function DashboardOverviewPage() {
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <CardTitle className="text-2xl">Getting Started</CardTitle>
+              <CardTitle className="text-2xl">{terminology.gettingStarted}</CardTitle>
               <p className="mt-2 text-sm text-brand-600">Complete these steps to prepare your organization for members.</p>
             </div>
             <p className="rounded-full bg-accent-100 px-3 py-1 text-sm font-bold text-accent-800">{data.progress}% Complete</p>
@@ -141,6 +154,26 @@ export default async function DashboardOverviewPage() {
             </ul>
           )}
         </Card>
+      </section>
+
+      <section aria-labelledby="workspace-readiness-title">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="workspace-readiness-title" className="font-display text-2xl font-bold text-brand-900">Workspace Readiness</h2>
+            <p className="mt-2 text-sm text-brand-600">Live configuration checks from your tenant workspace.</p>
+          </div>
+          <Button href="/dashboard/support" variant="secondary">Open Support</Button>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <ReadinessCard label="Tenant Profile" ready={data.readiness.profileComplete} href="/dashboard/settings" />
+          <ReadinessCard label="Branding" ready={data.readiness.brandingComplete} href="/dashboard/branding" />
+          <ReadinessCard label="Team Invitations" ready={data.readiness.teamInvited} href="/dashboard/team" />
+          <ReadinessCard label="Sender Configuration" ready={data.readiness.senderConnected} href="/dashboard/communications/settings" />
+          <ReadinessCard label="Content Setup" ready={data.readiness.contentConfigured} href="/dashboard/content-library" />
+          <ReadinessCard label="Membership Setup" ready={data.readiness.membershipConfigured} href="/dashboard/memberships" />
+          <ReadinessCard label="Payment Connection" ready={data.readiness.paymentConnected} href="/dashboard/settings/integrations/payments" unavailableLabel="Payments Not Connected" />
+          <ReadinessCard label="Support Access" ready href="/dashboard/support" />
+        </div>
       </section>
 
       {data.aiQuickStart && <section id="ai-quick-start" className="scroll-mt-24">
@@ -207,5 +240,26 @@ export default async function DashboardOverviewPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ReadinessCard({
+  label,
+  ready,
+  href,
+  unavailableLabel = "Setup Needed"
+}: {
+  label: string;
+  ready: boolean;
+  href: string;
+  unavailableLabel?: string;
+}) {
+  return (
+    <Link href={href} className="rounded-xl border border-brand-200 bg-white p-4 shadow-card transition hover:border-accent-300 hover:-translate-y-0.5">
+      <p className="text-sm font-bold text-brand-900">{label}</p>
+      <p className={ready ? "mt-2 text-xs font-semibold text-success-strong" : "mt-2 text-xs font-semibold text-warning-strong"}>
+        {ready ? "Complete" : unavailableLabel}
+      </p>
+    </Link>
   );
 }

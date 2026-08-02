@@ -11,7 +11,7 @@ export async function GET(
   _: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getPlatformAdministrator())) {
+  if (!(await getPlatformAdministrator("platform.tenants.manage"))) {
     return NextResponse.json(
       { error: "Platform administrator access is required." },
       { status: 403 }
@@ -36,7 +36,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getPlatformAdministrator())) {
+  if (!(await getPlatformAdministrator("platform.tenants.manage"))) {
     return NextResponse.json(
       { error: "Platform administrator access is required." },
       { status: 403 }

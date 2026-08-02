@@ -1,0 +1,22 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getActiveTenantWithPermission } from "@/lib/tenant-context";
+
+const schema = z.object({ id: z.string().uuid(), status: z.enum(["in_review", "completed", "denied"]), resolutionNotes: z.string().trim().max(5000) }).refine((value) => value.status === "in_review" || value.resolutionNotes.length >= 10, { message: "Completed or denied requests require resolution notes." });
+function csvCell(value: unknown) { const text = typeof value === "string" ? value : JSON.stringify(value ?? ""); return `"${text.replaceAll('"', '""')}"`; }
+
+export async function GET(request: NextRequest) {
+  const context = await getActiveTenantWithPermission("tenant.data.manage"); if (!context) return NextResponse.json({ error: "Data governance permission is required." }, { status: 403 }); const admin = createAdminClient();
+  if (request.nextUrl.searchParams.get("export") === "audit") {
+    const { data, error } = await admin.from("audit_logs").select("id,user_id,action,entity_type,entity_id,metadata,created_at").eq("tenant_id", context.tenant.id).order("created_at", { ascending: false }).limit(5000); if (error) return NextResponse.json({ error: "Unable to export the audit history." }, { status: 500 });
+    const header = ["id","user_id","action","entity_type","entity_id","metadata","created_at"]; const csv = [header.map(csvCell).join(","), ...(data ?? []).map((row) => header.map((key) => csvCell(row[key as keyof typeof row])).join(","))].join("\r\n"); await admin.from("audit_logs").insert({ tenant_id: context.tenant.id, user_id: context.user.id, action: "tenant.audit.exported", entity_type: "tenant", entity_id: context.tenant.id, metadata: { rowCount: data?.length ?? 0, cappedAt: 5000 } }); return new NextResponse(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${context.tenant.slug}-audit-log.csv"`, "Cache-Control": "no-store" } });
+  }
+  const { data, error } = await admin.from("data_rights_requests").select("id,subject_user_id,requested_by,request_type,status,request_details,resolution_notes,resolved_by,resolved_at,created_at,updated_at").eq("tenant_id", context.tenant.id).order("created_at", { ascending: false }); if (error) return NextResponse.json({ error: /data_rights_requests|schema cache/i.test(error.message) ? "Data governance migration 0032 is required." : "Unable to load data-rights requests." }, { status: 500 });
+  const userIds = [...new Set((data ?? []).flatMap((row) => [row.subject_user_id, row.resolved_by]).filter(Boolean))] as string[]; const authResults = await Promise.all(userIds.map((id) => admin.auth.admin.getUserById(id))); const users = Object.fromEntries(authResults.map((result) => result.data.user).filter(Boolean).map((user) => [user!.id, { email: user!.email, name: user!.user_metadata?.full_name ?? user!.user_metadata?.name ?? "" }])); return NextResponse.json({ tenant: context.tenant, requests: data ?? [], users });
+}
+
+export async function POST(request: NextRequest) {
+  const parsed = schema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Check the resolution." }, { status: 400 }); const context = await getActiveTenantWithPermission("tenant.data.manage"); if (!context) return NextResponse.json({ error: "Data governance permission is required." }, { status: 403 });
+  const admin = createAdminClient(); const final = ["completed", "denied"].includes(parsed.data.status); const now = new Date().toISOString(); const { data, error } = await admin.from("data_rights_requests").update({ status: parsed.data.status, resolution_notes: parsed.data.resolutionNotes, resolved_by: final ? context.user.id : null, resolved_at: final ? now : null, updated_at: now }).eq("id", parsed.data.id).eq("tenant_id", context.tenant.id).select("id").maybeSingle(); if (error) return NextResponse.json({ error: "Unable to update the request." }, { status: 500 }); if (!data) return NextResponse.json({ error: "Data request not found." }, { status: 404 }); await admin.from("audit_logs").insert({ tenant_id: context.tenant.id, user_id: context.user.id, action: `tenant.data_request.${parsed.data.status}`, entity_type: "data_rights_request", entity_id: data.id, metadata: {} }); return NextResponse.json({ saved: true });
+}

@@ -1,9 +1,9 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { getActiveTenantAdministrator } from "@/lib/tenant-context";
-import { canManagePlatformAI, tenantRequestMatchesCurrentWorkspace, type AIConfigurationContext } from "@/lib/ai/permissions";
+import { getPlatformAdministrator } from "@/lib/platform-context";
+import { tenantRequestMatchesCurrentWorkspace, type AIConfigurationContext } from "@/lib/ai/permissions";
 
 export async function authorizeAIConfiguration(input: {
   context: AIConfigurationContext;
@@ -34,17 +34,16 @@ export async function authorizeAIConfiguration(input: {
   }
 
   if (!input.requestedTenantId) return null;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !canManagePlatformAI(user.app_metadata?.platform_role)) return null;
+  const access = await getPlatformAdministrator("platform.integrations.manage");
+  if (!access) return null;
   const admin = createAdminClient();
   const { data: tenant } = await admin.from("tenants").select("id,name").eq("id", input.requestedTenantId).maybeSingle();
   if (!tenant) return null;
   return {
     tenantId: tenant.id,
     tenantName: tenant.name,
-    user,
-    actingRole: String(user.app_metadata?.platform_role),
+    user: access.user,
+    actingRole: access.role,
     context: input.context,
     canWrite: true
   };

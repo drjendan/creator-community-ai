@@ -1,0 +1,18 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { Sparkles, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { Card } from "@/components/ui";
+
+type Recommendation = { id: string; contentType: string; contentId: string; title: string; reason: string; explanation: string; href: string };
+
+export function MemberRecommendations({ tenantSlug }: { tenantSlug: string }) {
+  const [items, setItems] = useState<Recommendation[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
+  const load = useCallback(async () => { try { const response = await fetch(`/api/recommendations?tenantSlug=${encodeURIComponent(tenantSlug)}`, { cache: "no-store" }); const result = await response.json(); if (!response.ok) throw new Error(result.error); setItems(result.recommendations ?? []); } catch (reason) { setError(reason instanceof Error ? reason.message : "Recommendations are unavailable."); } finally { setLoading(false); } }, [tenantSlug]);
+  useEffect(() => { void load(); }, [load]);
+  async function act(item: Recommendation, action: "dismiss" | "feedback", feedback?: "helpful" | "not_helpful") { setError(""); const response = await fetch("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tenantSlug, id: item.id, action, feedback }) }); if (!response.ok) { const result = await response.json(); setError(result.error ?? "Unable to save your response."); return; } if (action === "dismiss") setItems((current) => current.filter((entry) => entry.id !== item.id)); }
+  if (loading) return <Card><p className="text-sm text-brand-500">Building recommendations from content available to you…</p></Card>;
+  if (!items.length && !error) return null;
+  return <section aria-labelledby="member-recommendations"><div className="mb-4"><h2 id="member-recommendations" className="flex items-center gap-2 font-display text-2xl font-bold"><Sparkles className="h-5 w-5 text-accent-700" /> Recommended for you</h2><p className="mt-1 text-sm text-brand-500">Rules-based suggestions from your available content and activity.</p></div>{error && <p role="alert" className="mb-3 text-sm font-semibold text-red-700">{error}</p>}<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.map((item) => <Card key={`${item.contentType}:${item.contentId}`}><div className="flex justify-between gap-3"><span className="text-xs font-bold uppercase text-accent-700">{item.contentType.replace("_", " ")}</span><button type="button" aria-label={`Dismiss ${item.title}`} onClick={() => void act(item, "dismiss")}><X className="h-4 w-4" /></button></div><h3 className="mt-3 font-display text-lg font-bold">{item.title}</h3><p className="mt-2 text-sm font-semibold text-brand-700">{item.reason}</p><details className="mt-2 text-sm text-brand-500"><summary className="cursor-pointer font-semibold">Why recommended</summary><p className="mt-2">{item.explanation}</p></details><div className="mt-4 flex items-center gap-2"><Link href={item.href} className="inline-flex rounded-lg bg-accent-600 px-3 py-2 text-sm font-bold text-white hover:bg-accent-700">Open</Link><button type="button" aria-label={`Mark ${item.title} helpful`} onClick={() => void act(item, "feedback", "helpful")} className="p-2 text-brand-500"><ThumbsUp className="h-4 w-4" /></button><button type="button" aria-label={`Mark ${item.title} not helpful`} onClick={() => void act(item, "feedback", "not_helpful")} className="p-2 text-brand-500"><ThumbsDown className="h-4 w-4" /></button></div></Card>)}</div></section>;
+}

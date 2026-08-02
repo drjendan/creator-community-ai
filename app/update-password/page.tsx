@@ -5,6 +5,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { Button, Card, Container, Field, Input } from "@/components/ui";
 import { createPasswordRecoveryClient } from "@/lib/supabase/client";
+import { AuthLegalLinks } from "@/components/legal/AuthLegalLinks";
+import { logError } from "@/lib/logging";
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
@@ -28,7 +30,7 @@ export default function UpdatePasswordPage() {
           if (!data.session) setMessage("This password reset link is invalid or has expired. Request a new email.");
         }
       } catch (error) {
-        console.error("[Password recovery] Unable to establish recovery session", error);
+        logError("auth.password_recovery.session_failed", error);
         if (active) setMessage(error instanceof Error ? error.message : "This password reset link is invalid or has expired.");
       } finally {
         if (active) setCheckingSession(false);
@@ -63,7 +65,7 @@ export default function UpdatePasswordPage() {
       setSuccess(true);
       setMessage("Your password has been updated. You can now sign in.");
     } catch (error) {
-      console.error("[Password recovery] Unexpected password update error", error);
+      logError("auth.password_recovery.update_failed", error);
       setMessage(error instanceof Error ? error.message : "Unable to update your password.");
     } finally {
       setSaving(false);
@@ -125,6 +127,7 @@ export default function UpdatePasswordPage() {
               )}
             </>
           )}
+          <AuthLegalLinks />
         </Card>
       </Container>
     </main>

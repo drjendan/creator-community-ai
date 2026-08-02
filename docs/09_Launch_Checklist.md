@@ -39,7 +39,7 @@ Priority labels: **[Must]**, **[Should]**, **[Later]**. A checked box requires l
 
 - [ ] **[Must]** Platform subscriptions and audience memberships use separate tables/copy/reporting
 - [ ] **[Must]** Billing operating model and owner approved
-- [ ] **[Must]** Signed, idempotent Stripe webhook flow tested if automated billing is enabled
+- [ ] **[Must]** Confirm `STRIPE_BILLING_ENABLED=false` for this release, or test the signed, idempotent Stripe webhook flow before enabling automated billing
 - [ ] **[Must]** Trial, complimentary, cancellation, grace period, and access behavior documented
 - [ ] **[Should]** Portal, invoices, failed-payment communications, and reconciliation
 - [ ] **[Later]** Credit packages, Connect, and complex revenue sharing
@@ -81,12 +81,16 @@ Priority labels: **[Must]**, **[Should]**, **[Later]**. A checked box requires l
 ## Deployment, domains, analytics, monitoring, and backup
 
 - [ ] **[Must]** Correct repository/root directory selected in Vercel
-- [ ] **[Must]** Preview and production environment variables configured outside source control
-- [ ] **[Must]** Production Supabase migrations and redirect URLs verified
+- [ ] **[Must]** Production environment variables configured outside source control
+- [ ] **[Must]** Production Supabase migrations through 0040, schema verifier, and redirect URLs verified
+- [ ] **[Must]** Clean `npm run release:preflight` commit/artifact hashes frozen in an immutable release candidate
+- [ ] **[Must]** Matching production isolation and quality runs complete; all readiness gates passed or explicitly waived
+- [ ] **[Must]** Platform Owner approves the frozen candidate before the production push
 - [ ] **[Must]** `upnexx.net`, `www.upnexx.net`, and `app.upnexx.net` ownership/routing decision approved
 - [ ] **[Must]** SSL, canonical redirects, email DNS records, and rollback tested
 - [ ] **[Must]** Error monitoring, uptime alerts, structured logs, and on-call owner active
 - [ ] **[Must]** Database/storage backups configured and restore proof recorded
+- [ ] **[Must]** Deployment and smoke-test evidence recorded only after production succeeds
 - [ ] **[Should]** Consent-aware product analytics and funnel events
 - [ ] **[Should]** Post-launch dashboard and review cadence
 
@@ -94,7 +98,7 @@ Priority labels: **[Must]**, **[Should]**, **[Later]**. A checked box requires l
 
 ### Internal alpha
 
-- [ ] Core local/staging workflows pass
+- [ ] Core local production-mode workflows pass; no staging promotion is used
 - [ ] No known tenant-isolation failure
 - [ ] Seed/demo data only
 - [ ] Defects and owners documented

@@ -14,7 +14,7 @@ UpNexx is a product of **Nexx Jenn Technologies**.
 
 **Development / first-customer foundation.** The repository includes the branded marketing experience, Supabase authentication, multi-tenant schema and RLS policies, role-aware administration, tenant provisioning, tenant branding, core content CRUD and storage, member media views, audience membership-plan management, encrypted tenant AI-provider credentials, creator AI generation, AI usage/credit foundations, tests, and guided onboarding.
 
-Stripe execution, Resend delivery, production deployment, operational custom-domain provisioning, member RAG/citations, recommendations, administrator AI insights, Sentry, PostHog, and production support/recovery processes are planned or partial. See the [documentation index](docs/README.md) for evidence-based status.
+Stripe production billing is implemented but intentionally disabled for the initial production release; live integration and transaction validation are deferred. Durable Resend delivery boundaries are implemented, while production provider/domain activation, production deployment, operational custom-domain provisioning, advanced vector RAG, external monitoring, product analytics, and production support/recovery exercises remain operator work or partial. Explainable rules-based recommendations and qualified administrator insights are implemented. See the [documentation index](docs/README.md) for evidence-based status.
 
 ## Technology
 
@@ -24,7 +24,7 @@ Stripe execution, Resend delivery, production deployment, operational custom-dom
 - Direct OpenAI, Anthropic, and Google provider integration for creator AI
 - Vitest, Testing Library, and Playwright
 
-Stripe, Resend, Vercel, Cloudflare, Sentry, PostHog, and Vercel AI SDK are target or recommended technologies and must not be treated as active integrations unless repository evidence changes.
+Stripe billing and Connect Standard are implemented integration boundaries. Resend, Vercel, Cloudflare, Sentry, PostHog, and Vercel AI SDK must not be treated as active integrations unless repository evidence confirms configuration.
 
 ## Run locally on Windows
 
@@ -52,7 +52,7 @@ The development launcher is single-instance. If UpNexx is already listening on p
 1. Install Node.js 20 or later.
 2. Copy `.env.example` to `.env.local`.
 3. Add the Supabase project URL, anonymous key, and required server-only values.
-4. Apply SQL migrations in order through `0006_subscription_membership_ai_foundation.sql`.
+4. Apply every SQL migration in order through `0040_production_release_package.sql`. Migrations 0018–0040 add separate platform and tenant access controls, secure invitations and history, production billing, trusted AI and learning workflows, complete content/community experiences, governance and security controls, production-readiness evidence, isolation/quality verification, custom domains, and immutable release approval/deployment evidence.
 5. Verify authentication redirect URLs, RLS, tenant roles, and the `tenant-assets` storage policies.
 6. Start the application.
 
@@ -68,6 +68,7 @@ npm.cmd test
 npm.cmd run test:coverage
 npm.cmd run test:e2e
 npm.cmd run build
+npm.cmd run release:preflight
 npm.cmd start
 ```
 
@@ -97,14 +98,14 @@ Production dashboards never display fabricated business metrics, sample tenants,
 
 ## Known limitations
 
-- Stripe checkout, customer portal, signed webhooks, and audience-payment operations are not implemented.
-- Resend invitations/notifications are not implemented.
-- Member AI retrieval, citations, recommendations, and administrator insights are not production features.
-- Live staging RLS and cross-tenant isolation testing remains required.
+- Stripe billing is deferred and must remain disabled with `STRIPE_BILLING_ENABLED=false`; enabling it later requires live credentials, webhook registration, Price mapping, and controlled production transaction verification.
+- Durable Resend invitation/access notifications are implemented; production credentials, sender-domain DNS verification, webhooks, and delivery alerting require operator validation.
+- Advanced vector retrieval remains pending; member recommendations and qualified administrator insights use transparent deterministic rules and require production data validation.
+- Production RLS and cross-tenant isolation must be verified during the combined release.
 - Authenticated Playwright scenarios require safe test credentials.
-- Custom-domain records exist, but automated DNS verification/certificate lifecycle does not.
+- Custom-domain requests, live DNS verification, verified-host routing, canonical redirects, certificate evidence, activation, and rollback are implemented. Hosting-provider certificate issuance and live production proof remain explicit operator actions.
 - Storage privacy for paid/member assets needs production review.
-- Operational monitoring, rate limits, recovery objectives, legal policies, and support ownership need approval.
+- Operational evidence controls and rate limits are implemented; external monitoring, approved recovery objectives, restore exercises, legal policies, and support ownership still require operator action or approval.
 
 ## Product architecture rule
 

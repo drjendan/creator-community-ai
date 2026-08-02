@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { Building2, Palette, Settings2 } from "lucide-react";
+import { Building2, ExternalLink, Palette, Settings2 } from "lucide-react";
 import { Button, Card } from "@/components/ui";
 import { TenantCreationWizard } from "@/components/platform/TenantCreationWizard";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getPlatformAccess } from "@/lib/platform-context";
 import {
   tenantTypeLabels,
   type TenantType
 } from "@/lib/subscriptions";
+import { enterTenantWorkspace } from "@/app/platform-admin/tenants/actions";
+import { terminology } from "@/lib/terminology";
 
 type TenantRow = {
   id: string;
@@ -26,13 +28,9 @@ export default async function TenantsPage({
   searchParams: Promise<{ success?: string; error?: string; status?: string }>;
 }) {
   const { success, error, status = "active" } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  const platformRole = user?.app_metadata?.platform_role;
-  const authorized =
-    platformRole === "platform_owner" || platformRole === "platform_admin";
+  const access = await getPlatformAccess();
+  const authorized = access?.permissions.has("platform.tenants.view") ?? false;
+  const canManage = access?.permissions.has("platform.tenants.manage") ?? false;
   let tenants: TenantRow[] = [];
   const memberCounts = new Map<string, number>();
   const ownerEmails = new Map<string, string>();
@@ -82,7 +80,7 @@ export default async function TenantsPage({
             Tenant management
           </p>
           <h1 className="mt-2 font-display text-3xl font-extrabold text-brand-900">
-            UpNexx tenants
+            {terminology.upnexxTenants}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-brand-600">
             Provision organizations, platform subscriptions, feature overrides,
@@ -90,8 +88,8 @@ export default async function TenantsPage({
           </p>
         </div>
         <div className="flex gap-2">
-          {platformRole === "platform_owner" && <Button href="/platform-admin/tenants/deleted" variant="secondary">Deleted records</Button>}
-          <Button href="#new-tenant">Create tenant</Button>
+          {access?.role === "platform_owner" && <Button href="/platform-admin/tenants/deleted" variant="secondary">Deleted records</Button>}
+          {canManage && <Button href="#new-tenant">Create tenant</Button>}
         </div>
       </div>
 
@@ -112,8 +110,7 @@ export default async function TenantsPage({
           role="alert"
           className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-brand-800"
         >
-          Your account needs the <strong>platform_owner</strong> or{" "}
-          <strong>platform_admin</strong> app-metadata role.
+          Your platform role does not include tenant access.
         </div>
       )}
 
@@ -186,6 +183,7 @@ export default async function TenantsPage({
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-1">
+                          {canManage && tenant.status === "active" && <form action={enterTenantWorkspace}><input type="hidden" name="tenantId" value={tenant.id} /><button type="submit" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-accent-700 hover:bg-accent-50"><ExternalLink className="h-4 w-4" />Open workspace</button></form>}
                           <Link
                             href={`/platform-admin/tenants/${tenant.id}/branding`}
                             className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-accent-700 hover:bg-accent-50"
@@ -211,7 +209,7 @@ export default async function TenantsPage({
         </Card>
       )}
 
-      <TenantCreationWizard authorized={authorized} />
+      <TenantCreationWizard authorized={canManage} />
     </div>
   );
 }

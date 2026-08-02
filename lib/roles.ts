@@ -1,8 +1,14 @@
 export type Role =
   | "platform_owner"
   | "platform_admin"
+  | "platform_support"
+  | "platform_billing_admin"
+  | "platform_content_admin"
+  | "platform_analyst"
+  | "platform_developer"
   | "tenant_owner"
   | "tenant_admin"
+  | "billing_admin"
   | "communication_manager"
   | "content_manager"
   | "course_manager"
@@ -11,5 +17,8 @@ export type Role =
   | "community_moderator"
   | "analyst"
   | "support_staff"
+  | "support_manager"
+  | "contributor"
+  | "viewer"
   | "member"
   | "guest";

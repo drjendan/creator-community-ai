@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getActiveTenantCommunicator } from "@/lib/tenant-context";
 import { getTenantEntitlements } from "@/lib/feature-entitlements";
 import { getActiveEmailProvider } from "@/lib/communications/configuration";
+import { trialMutationError } from "@/lib/trials";
 
 const schema = z.object({ email: z.string().email() });
 
@@ -17,6 +18,8 @@ export async function POST(
       { status: 403 }
     );
   }
+  const trialError = await trialMutationError(context.tenant.id, "campaign");
+  if (trialError) return NextResponse.json({ error: trialError }, { status: 402 });
   const entitlements = await getTenantEntitlements(
     context.tenant.id,
     context.supabase

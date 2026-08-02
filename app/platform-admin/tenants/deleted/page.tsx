@@ -2,12 +2,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { Button, Card } from "@/components/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getPlatformAdministrator } from "@/lib/platform-context";
 
 export default async function DeletedTenantsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !["platform_owner", "super_admin"].includes(String(user.app_metadata?.platform_role ?? ""))) notFound();
+  const access = await getPlatformAdministrator("platform.team.grant_owner");
+  if (!access || access.role !== "platform_owner") notFound();
   const admin = createAdminClient();
   const { data: records } = await admin
     .from("platform_tenant_deletion_records")

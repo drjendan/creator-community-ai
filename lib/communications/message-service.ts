@@ -56,7 +56,7 @@ export async function deliverMessage(
   const { error: recipientError } = await admin
     .from("communication_message_recipients")
     .upsert(
-      recipients.map((recipient) => ({
+      recipients.filter((recipient) => recipient.userId).map((recipient) => ({
         tenant_id: tenantId,
         message_id: message.id,
         user_id: recipient.userId
@@ -104,9 +104,9 @@ export async function deliverMessage(
   }
 
   return {
-    attempted: recipients.length,
+    attempted: recipients.filter((recipient) => recipient.userId).length,
     accepted,
-    inAppDelivered: recipients.length,
+    inAppDelivered: recipients.filter((recipient) => recipient.userId).length,
     status: "sent"
   };
 }

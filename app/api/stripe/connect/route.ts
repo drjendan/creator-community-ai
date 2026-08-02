@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getActiveTenantAdministrator } from "@/lib/tenant-context";
+import { getActiveTenantWithPermission } from "@/lib/tenant-context";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { stripeBillingEnabled } from "@/lib/env";
 import {
-  canAcceptPayments, createConnectedAccount, createOnboardingLink,
-  retrieveConnectedAccount, stripeAccountValues
+  canAcceptPayments, createConnectState, createStandardConnectUrl,
+  deauthorizeStandardAccount, retrieveConnectedAccount, stripeAccountValues
 } from "@/lib/stripe-connect";
 
 const actionSchema = z.object({ action: z.enum(["start", "resume", "disconnect"]) });
 
 export async function GET() {
-  const context = await getActiveTenantAdministrator();
+  const context = await getActiveTenantWithPermission("tenant.billing.manage");
   if (!context) return NextResponse.json({ error: "Tenant administrator access is required." }, { status: 403 });
   const admin = createAdminClient();
   const { data: existing } = await admin
@@ -19,7 +20,7 @@ export async function GET() {
     .eq("tenant_id", context.tenant.id)
     .maybeSingle();
   let account = existing;
-  if (existing?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
+  if (stripeBillingEnabled() && existing?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
     try {
       const remote = await retrieveConnectedAccount(existing.stripe_account_id);
       const values = stripeAccountValues(remote);
@@ -36,12 +37,13 @@ export async function GET() {
   return NextResponse.json({
     account: account ?? { status: "not_connected" },
     paymentsEnabled: account ? canAcceptPayments(account) : false,
-    providerConfigured: Boolean(process.env.STRIPE_SECRET_KEY)
+    providerConfigured: stripeBillingEnabled() && Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_CONNECT_CLIENT_ID && process.env.STRIPE_CONNECT_STATE_SECRET)
   });
 }
 
 export async function POST(request: NextRequest) {
-  const context = await getActiveTenantAdministrator();
+  if (!stripeBillingEnabled()) return NextResponse.json({ error: "Stripe integration is deferred and currently disabled." }, { status: 503 });
+  const context = await getActiveTenantWithPermission("tenant.billing.manage");
   if (!context) return NextResponse.json({ error: "Tenant administrator access is required." }, { status: 403 });
   const admin = createAdminClient();
   const parsed = actionSchema.safeParse(await request.json().catch(() => null));
@@ -53,6 +55,13 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (parsed.data.action === "disconnect") {
+    if (existing?.stripe_account_id) {
+      try {
+        await deauthorizeStandardAccount(existing.stripe_account_id);
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : "Stripe account disconnection failed." }, { status: 502 });
+      }
+    }
     const { error } = await admin.from("tenant_stripe_accounts").upsert({
       tenant_id: context.tenant.id,
       status: "disconnected",
@@ -72,26 +81,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    let accountId = existing?.stripe_account_id as string | null;
-    if (!accountId) {
-      const account = await createConnectedAccount(context.user.email ?? "");
-      accountId = account.id;
-      const { error } = await admin.from("tenant_stripe_accounts").upsert({
-        tenant_id: context.tenant.id,
-        ...stripeAccountValues(account),
-        connected_by: context.user.id
-      }, { onConflict: "tenant_id" });
-      if (error) throw error;
-    }
-    const origin = request.nextUrl.origin;
-    const path = "/dashboard/settings/integrations/payments";
-    const link = await createOnboardingLink(accountId, `${origin}${path}?stripe=returned`, `${origin}${path}?stripe=refresh`);
+    const applicationUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!applicationUrl) throw new Error("The canonical application URL is not configured.");
+    const callbackUrl = new URL("/api/stripe/connect/callback", applicationUrl).toString();
+    const state = createConnectState(context.tenant.id, context.user.id);
+    const url = createStandardConnectUrl(state, callbackUrl, context.user.email ?? "");
     await admin.from("audit_logs").insert({
       tenant_id: context.tenant.id, user_id: context.user.id,
       action: "tenant.stripe.onboarding_started", entity_type: "tenant_stripe_account",
-      metadata: { resumed: Boolean(existing?.stripe_account_id) }
+      metadata: { resumed: Boolean(existing?.stripe_account_id), account_type: "standard" }
     });
-    return NextResponse.json({ url: link.url });
+    return NextResponse.json({ url });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Stripe onboarding could not be started." }, { status: 502 });
   }

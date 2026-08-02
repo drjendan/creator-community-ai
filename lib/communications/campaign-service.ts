@@ -7,8 +7,11 @@ import { resolveEligibleRecipients } from "@/lib/communications/audience";
 import { createPreferenceToken } from "@/lib/communications/tokens";
 import { recordCommunicationUsage } from "@/lib/communications/operations";
 import { renderBrandedEmail } from "@/lib/communications/branding";
+import { trialMutationError } from "@/lib/trials";
 
 export async function processCampaign(admin: SupabaseClient, tenantId: string, campaignId: string, origin: string) {
+  const trialError = await trialMutationError(tenantId, "campaign");
+  if (trialError) return { error: trialError, httpStatus: 402 };
   const { data: campaign } = await admin.from("email_campaigns").select("*").eq("id", campaignId).eq("tenant_id", tenantId).single();
   if (!campaign) return { error: "Campaign not found.", httpStatus: 404 };
   if (!campaign.subject?.trim() || (!campaign.html_content?.trim() && !campaign.plain_text_content?.trim())) return { error: "A subject and email body are required.", httpStatus: 400 };

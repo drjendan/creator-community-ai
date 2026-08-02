@@ -23,7 +23,7 @@ const schema = z.object({
 });
 
 export async function GET() {
-  if (!(await getPlatformAdministrator())) {
+  if (!(await getPlatformAdministrator("platform.settings.manage"))) {
     return NextResponse.json(
       { error: "Platform administrator access is required." },
       { status: 403 }
@@ -44,7 +44,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const context = await getPlatformAdministrator();
+  const context = await getPlatformAdministrator("platform.settings.manage");
   if (!context) {
     return NextResponse.json(
       { error: "Platform administrator access is required." },

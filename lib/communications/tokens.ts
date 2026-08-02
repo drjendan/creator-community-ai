@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-type PreferenceToken = { tenantId: string; userId: string; email: string; expiresAt: number };
+type PreferenceToken = { tenantId: string; userId: string | null; email: string; expiresAt: number };
 
 function secret() {
   const value = process.env.COMMUNICATION_SIGNING_SECRET;
@@ -24,7 +24,7 @@ export function verifyPreferenceToken(token: string): PreferenceToken | null {
   if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) return null;
   try {
     const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as PreferenceToken;
-    if (!parsed.tenantId || !parsed.userId || !parsed.email || parsed.expiresAt < Date.now()) return null;
+    if (!parsed.tenantId || !parsed.email || parsed.expiresAt < Date.now()) return null;
     return parsed;
   } catch {
     return null;

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getPlatformAdministrator } from "@/lib/platform-context";
 import { tenantDeletionBlockers } from "@/lib/tenant-lifecycle";
 
-const platformRoles = new Set(["platform_owner", "platform_admin", "super_admin"]);
-const ownerOnlyRoles = new Set(["platform_owner", "super_admin"]);
+const ownerOnlyRoles = new Set(["platform_owner"]);
 
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("resend_owner_invitation") }),
@@ -20,10 +19,7 @@ const schema = z.discriminatedUnion("action", [
 ]);
 
 async function platformActor() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const role = String(user?.app_metadata?.platform_role ?? "");
-  return user && platformRoles.has(role) ? { user, role } : null;
+  return getPlatformAdministrator("platform.tenants.manage");
 }
 
 async function ownerForTenant(admin: ReturnType<typeof createAdminClient>, tenantId: string) {
@@ -32,6 +28,9 @@ async function ownerForTenant(admin: ReturnType<typeof createAdminClient>, tenan
     .select("user_id,created_at")
     .eq("tenant_id", tenantId)
     .eq("role", "tenant_owner")
+    .eq("status", "active")
+    .order("created_at")
+    .limit(1)
     .maybeSingle();
   if (!membership) return null;
   const [{ data: auth }, { data: profile }] = await Promise.all([
@@ -58,6 +57,15 @@ async function audit(admin: ReturnType<typeof createAdminClient>, tenantId: stri
     entity_id: tenantId,
     metadata
   });
+}
+
+async function deactivateTenantDomains(admin: ReturnType<typeof createAdminClient>, tenantId: string, userId: string, reason: string, now: string) {
+  const { data: activeCustomDomains } = await admin.from("tenant_domains").select("id").eq("tenant_id", tenantId).eq("domain_type", "custom").eq("status", "active");
+  await admin.from("tenant_domains").update({ status: "inactive", is_primary: false, canonical_redirect_enabled: false, updated_by: userId, updated_at: now }).eq("tenant_id", tenantId);
+  if (activeCustomDomains?.length) {
+    await admin.from("tenant_domain_verification_attempts").insert(activeCustomDomains.map((domain) => ({ domain_id: domain.id, tenant_id: tenantId, check_type: "rollback", status: "blocked", evidence_reference: `tenant-lifecycle:${reason}:${now}`, notes: `Custom-domain routing was disabled by tenant ${reason}; this is not a passed rollback rehearsal.`, performed_by: userId })));
+    await admin.from("production_readiness_checks").update({ status: "pending", evidence_reference: "", notes: `Custom-domain routing was disabled by tenant ${reason}. Reactivation requires the verified lifecycle.`, verified_by: null, verified_at: null, updated_at: now }).eq("check_key", "custom_domain_verified");
+  }
 }
 
 async function deletionPreflight(admin: ReturnType<typeof createAdminClient>, tenantId: string) {
@@ -146,28 +154,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (input.action === "suspend") {
     if (!["active", "pending"].includes(tenant.status)) return NextResponse.json({ error: "Only active or pending tenants can be suspended." }, { status: 409 });
     await admin.from("tenants").update({ status: "suspended", suspended_at: now, suspended_by: actor.user.id, suspension_reason: input.reason, updated_at: now }).eq("id", id);
-    await admin.from("tenant_domains").update({ status: "inactive", updated_at: now }).eq("tenant_id", id);
+    await deactivateTenantDomains(admin, id, actor.user.id, "suspension", now);
     await audit(admin, id, actor.user.id, "platform.tenant.suspended", { reason: input.reason, previous_status: tenant.status });
     return NextResponse.json({ message: "Tenant suspended." });
   }
   if (input.action === "reactivate") {
     if (tenant.status !== "suspended") return NextResponse.json({ error: "Only suspended tenants can be reactivated." }, { status: 409 });
     await admin.from("tenants").update({ status: "active", suspended_at: null, suspended_by: null, suspension_reason: null, updated_at: now }).eq("id", id);
-    await admin.from("tenant_domains").update({ status: "active", updated_at: now }).eq("tenant_id", id);
+    await admin.from("tenant_domains").update({ status: "active", is_primary: true, updated_at: now }).eq("tenant_id", id).eq("domain_type", "upnexx_subdomain");
     await audit(admin, id, actor.user.id, "platform.tenant.reactivated");
     return NextResponse.json({ message: "Tenant reactivated." });
   }
   if (input.action === "archive") {
     if (!["active", "pending", "suspended"].includes(tenant.status)) return NextResponse.json({ error: "This tenant cannot be archived." }, { status: 409 });
     await admin.from("tenants").update({ status: "archived", archived_at: now, archived_by: actor.user.id, updated_at: now }).eq("id", id);
-    await admin.from("tenant_domains").update({ status: "inactive", updated_at: now }).eq("tenant_id", id);
+    await deactivateTenantDomains(admin, id, actor.user.id, "archival", now);
     await audit(admin, id, actor.user.id, "platform.tenant.archived", { reason: input.reason, previous_status: tenant.status });
     return NextResponse.json({ message: "Tenant archived." });
   }
   if (input.action === "restore") {
     if (tenant.status !== "archived") return NextResponse.json({ error: "Only archived tenants can be restored." }, { status: 409 });
     await admin.from("tenants").update({ status: "active", archived_at: null, archived_by: null, updated_at: now }).eq("id", id);
-    await admin.from("tenant_domains").update({ status: "active", updated_at: now }).eq("tenant_id", id);
+    await admin.from("tenant_domains").update({ status: "active", is_primary: true, updated_at: now }).eq("tenant_id", id).eq("domain_type", "upnexx_subdomain");
     await audit(admin, id, actor.user.id, "platform.tenant.restored");
     return NextResponse.json({ message: "Tenant restored." });
   }
@@ -183,7 +191,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     deleted_by: actor.user.id, deletion_reason: input.reason, preflight_snapshot: preflight
   });
   await admin.from("tenant_memberships").update({ status: "inactive", deactivated_at: now, updated_at: now }).eq("tenant_id", id);
-  await admin.from("tenant_domains").update({ status: "inactive", is_primary: false, updated_at: now }).eq("tenant_id", id);
+  await deactivateTenantDomains(admin, id, actor.user.id, "deletion", now);
   await admin.from("tenant_feature_entitlements").update({ enabled: false, updated_at: now }).eq("tenant_id", id);
   await admin.from("tenant_ai_settings").update({ enabled: false, updated_at: now }).eq("tenant_id", id);
   await admin.from("ai_provider_settings").delete().eq("tenant_id", id);

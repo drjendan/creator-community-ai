@@ -6,9 +6,12 @@ import { AiProviderSettings } from "@/components/dashboard/AiProviderSettings";
 import { TenantLifecycleManager } from "@/components/platform/TenantLifecycleManager";
 import { Button, Card, Field, Input, Select } from "@/components/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getPlatformAdministrator } from "@/lib/platform-context";
 import { hasValidEncryptionConfiguration } from "@/lib/security/api-key-encryption";
 import { featureCatalog, platformPlanSlugs, tenantTypeLabels, tenantTypes } from "@/lib/subscriptions";
+import { TrialManagement } from "@/components/platform/TrialManagement";
+import { TenantTeamManager } from "@/components/platform/TenantTeamManager";
+import { getTenantTrialAccess } from "@/lib/trials";
 
 export default async function EditTenantPage({
   params,
@@ -19,18 +22,18 @@ export default async function EditTenantPage({
 }) {
   const { id } = await params;
   const { setupAI } = await searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const platformRole = String(user?.app_metadata?.platform_role ?? "");
-  if (!user || !["platform_owner", "platform_admin", "super_admin"].includes(platformRole)) notFound();
+  const access = await getPlatformAdministrator("platform.tenants.manage");
+  if (!access) notFound();
 
   const admin = createAdminClient();
-  const [{ data: tenant }, { data: subscription }, { data: aiCredentialPolicy }, { data: entitlements }, { data: ownerMembership }] = await Promise.all([
+  const [{ data: tenant }, { data: subscription }, { data: aiCredentialPolicy }, { data: entitlements }, { data: ownerMembership }, { data: trialHistory }, { data: paidPlans }] = await Promise.all([
     admin.from("tenants").select("id,name,slug,status,tenant_type,owner_invited_at,owner_invitation_last_sent_at,owner_invitation_send_count,owner_activated_at").eq("id", id).maybeSingle(),
     admin.from("tenant_subscriptions").select("status,billing_frequency,custom_price,ai_credit_allowance,platform_plans(slug)").eq("tenant_id", id).maybeSingle(),
     admin.from("feature_flags").select("enabled").eq("tenant_id", id).eq("key", "tenant_can_manage_ai_credentials").maybeSingle(),
     admin.from("tenant_feature_entitlements").select("feature_key,enabled").eq("tenant_id", id),
-    admin.from("tenant_memberships").select("user_id,created_at").eq("tenant_id", id).eq("role", "tenant_owner").maybeSingle()
+    admin.from("tenant_memberships").select("user_id,created_at").eq("tenant_id", id).eq("role", "tenant_owner").eq("status", "active").order("created_at").limit(1).maybeSingle(),
+    admin.from("trial_history").select("*").eq("tenant_id", id).order("created_at", { ascending: false }),
+    admin.from("platform_plans").select("slug,name").eq("status", "active").not("slug", "in", '("trial","complimentary")').order("price_monthly")
   ]);
   if (!tenant || tenant.status === "deleted") notFound();
 
@@ -65,6 +68,7 @@ export default async function EditTenantPage({
   const relatedPlan = subscription?.platform_plans as unknown as { slug?: string } | null;
   const enabledFeatures = new Set((entitlements ?? []).filter((item: any) => item.enabled).map((item: any) => item.feature_key));
   const live = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY && hasValidEncryptionConfiguration());
+  const trial = await getTenantTrialAccess(id);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -80,7 +84,16 @@ export default async function EditTenantPage({
       <TenantLifecycleManager
         tenant={{ id: tenant.id, name: tenant.name, status: tenant.status }}
         owner={owner}
-        canDelete={["platform_owner", "super_admin"].includes(platformRole)}
+        canDelete={access.role === "platform_owner"}
+      />
+
+      <TenantTeamManager tenantId={tenant.id} tenantName={tenant.name} />
+
+      <TrialManagement
+        tenantId={tenant.id}
+        subscription={trial}
+        history={trialHistory ?? []}
+        plans={paidPlans ?? []}
       />
 
       <Card>
@@ -90,7 +103,7 @@ export default async function EditTenantPage({
           <Field label="Organization name" htmlFor="edit-name"><Input id="edit-name" name="name" defaultValue={tenant.name} required /></Field>
           <Field label="Business type" htmlFor="edit-type"><Select id="edit-type" name="tenantType" defaultValue={tenant.tenant_type ?? "podcaster"}>{tenantTypes.map((type) => <option key={type} value={type}>{tenantTypeLabels[type]}</option>)}</Select></Field>
           <Field label="Platform plan" htmlFor="edit-plan"><Select id="edit-plan" name="planSlug" defaultValue={relatedPlan?.slug ?? "creator"}>{platformPlanSlugs.map((plan) => <option key={plan} value={plan}>{plan[0].toUpperCase() + plan.slice(1)}</option>)}</Select></Field>
-          <Field label="Subscription status" htmlFor="edit-subscription-status"><Select id="edit-subscription-status" name="subscriptionStatus" defaultValue={subscription?.status ?? "active"}><option value="trialing">Trialing</option><option value="active">Active</option><option value="past_due">Past due</option><option value="canceled">Canceled</option></Select></Field>
+          <Field label="Subscription status" htmlFor="edit-subscription-status"><Select id="edit-subscription-status" name="subscriptionStatus" defaultValue={subscription?.status ?? "active"}><option value="trialing">Trialing</option><option value="active">Active</option><option value="past_due">Past due</option><option value="canceled">Canceled</option><option value="expired_trial">Expired Trial</option></Select></Field>
           <Field label="Billing frequency" htmlFor="edit-frequency"><Select id="edit-frequency" name="billingFrequency" defaultValue={subscription?.billing_frequency ?? "monthly"}><option value="monthly">Monthly</option><option value="annual">Annual</option><option value="custom">Custom</option><option value="none">None</option></Select></Field>
           <Field label="Custom price" htmlFor="edit-price"><Input id="edit-price" name="customPrice" type="number" min="0" step="0.01" defaultValue={subscription?.custom_price ?? ""} /></Field>
           <Field label="Monthly AI credits" htmlFor="edit-credits"><Input id="edit-credits" name="aiCreditAllowance" type="number" min="0" defaultValue={subscription?.ai_credit_allowance ?? 0} required /></Field>

@@ -6,8 +6,10 @@ import {
   recordCommunicationAudit,
   recordCommunicationUsage
 } from "@/lib/communications/operations";
+import { trialMutationError } from "@/lib/trials";
 
 const resources = {
+  contacts: { table: "communication_contacts", entitlement: "communication_hub" },
   announcements: { table: "communication_announcements", entitlement: "communication_announcements" },
   messages: { table: "communication_messages", entitlement: "communication_direct_messages" },
   campaigns: { table: "email_campaigns", entitlement: "communication_email_campaigns" },
@@ -15,6 +17,7 @@ const resources = {
 } as const;
 
 const writableFields: Record<keyof typeof resources, string[]> = {
+  contacts: ["email", "first_name", "last_name", "status", "tags"],
   announcements: [
     "title", "summary", "body", "image_url", "status", "is_pinned",
     "publish_at", "expires_at", "audience_type", "audience_ids",
@@ -63,6 +66,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { resource } = await params;
   const authorized = await getContext(resource);
   if (!authorized) return NextResponse.json({ error: "This communication feature is unavailable." }, { status: 403 });
+  if (resource === "campaigns") {
+    const trialError = await trialMutationError(authorized.context.tenant.id, "campaign");
+    if (trialError) return NextResponse.json({ error: trialError }, { status: 402 });
+  }
   const body = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!body) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   if (body.status === "scheduled") {
@@ -80,7 +87,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   for (const field of writableFields[resource as keyof typeof resources]) {
     if (field in body) values[field] = body[field];
   }
-  const required = resource === "campaigns"
+  const required = resource === "contacts"
+    ? ["email"]
+    : resource === "campaigns"
     ? ["internal_name", "subject", "plain_text_content"]
     : resource === "templates"
       ? ["name", "subject", "plain_text_content"]
@@ -100,7 +109,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     values.html_content = `<div><p>${safeText.replaceAll("\n", "<br>")}</p></div>`;
     values.content_json = [{ type: "paragraph", text: plainText }];
   }
-  if (!id) {
+  if (!id && resource !== "contacts") {
     values.created_by = authorized.context.user.id;
     if ("updated_by" in values || resource === "campaigns" || resource === "templates") values.updated_by = authorized.context.user.id;
   }
@@ -145,7 +154,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!authorized) return NextResponse.json({ error: "This communication feature is unavailable." }, { status: 403 });
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "A record ID is required." }, { status: 400 });
-  const archiveStatus = resource === "announcements" || resource === "campaigns" || resource === "messages" ? "archived" : undefined;
+  const archiveStatus = resource === "contacts" || resource === "announcements" || resource === "campaigns" || resource === "messages" ? "archived" : undefined;
   const query = archiveStatus
     ? authorized.context.supabase.from(authorized.definition.table).update({ status: archiveStatus, updated_at: new Date().toISOString() }).eq("id", id).eq("tenant_id", authorized.context.tenant.id)
     : authorized.context.supabase.from(authorized.definition.table).update({ is_active: false, updated_at: new Date().toISOString() }).eq("id", id).eq("tenant_id", authorized.context.tenant.id);

@@ -1,171 +1,105 @@
 # 13 — Deployment and Environment Setup
 
-**Purpose:** Document safe local setup and the intended preview/production deployment workflow  
-**Status:** In Review  
-**Last Updated:** 2026-07-28  
-**Intended Audience:** Developers, DevOps, technical operators, and implementation partners
-
-## Contents
-
-1. [Local setup and environment](#local-setup)
-2. [Supabase and vendor setup](#supabase)
-3. [Vercel and deployment flow](#vercel-configuration)
-4. [Domains and DNS](#domains-and-dns)
-5. [Rollback, monitoring, and troubleshooting](#rollback-and-recovery)
-
-## Current deployment status
-
-The application builds as a Vercel-compatible Next.js application. No production deployment is evidenced or performed by this documentation change. Vercel is the intended direction; Cloudflare DNS and production domain routing are planned.
-
-## Required software
-
-- Current Node.js LTS and npm
-- Git
-- Supabase project and SQL Editor/CLI access
-- Browser for local verification
-- Optional provider/vendor accounts only for features being tested
+**Status:** In Review
+**Last Updated:** 2026-07-31
+**Production deployment:** Vercel at `upnexx.net`; no deployment performed by this change
 
 ## Local setup
 
 ```powershell
-git clone <repository-url>
-cd creator-community-ai
-npm install
+npm.cmd install
 Copy-Item .env.example .env.local
-npm run dev
+npm.cmd run dev
 ```
 
-Open `http://localhost:3000`. The project’s `scripts/dev-server.mjs` keeps the development server single-instance.
-
-Do not run `npm run build` while `next dev` is running because both use `.next`; stop development first, build, then restart.
+Open `http://localhost:3000`. Do not run the production build while the development server is using `.next`.
 
 ## Environment variables
 
-| Variable | Scope | Purpose | Status |
-| --- | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Public | Supabase project URL | Required |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | RLS-bound browser/server key | Required |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server secret | Trusted administrative workflows | Required for platform administration |
-| `APP_ENCRYPTION_KEY` | Server secret | Encrypt tenant AI keys | Required for BYO AI |
-| `NEXT_PUBLIC_APP_URL` | Public | Application origin | Required |
-| `NEXT_PUBLIC_ROOT_DOMAIN` | Public | Hosted tenant-domain resolution | Needs update/validation for UpNexx |
-| Stripe variables | Server/public as named | Billing | Placeholder; integration planned |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Server | Transactional email | Placeholder; integration planned |
+| Variable | Scope | Purpose |
+| --- | --- | --- |
+| `APP_ENV` | Server | `development`, `preview`, `staging`, `production`, or `test` |
+| `NEXT_PUBLIC_APP_URL` | Public | Exact application origin |
+| `NEXT_PUBLIC_ROOT_DOMAIN` | Public | Hosted tenant-domain resolution |
+| `CUSTOM_DOMAIN_CNAME_TARGET` | Server | Exact production hostname tenants target with CNAME records |
+| `NEXT_PUBLIC_SUPABASE_URL` | Public | Environment-specific Supabase URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | RLS-bound anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server secret | Trusted administrative workflows |
+| `APP_ENCRYPTION_KEY` | Server secret | Encrypt tenant AI provider credentials |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Server | Transactional email |
+| `RESEND_WEBHOOK_SECRET` | Server secret | Signed Resend webhook verification |
+| `COMMUNICATION_SIGNING_SECRET` | Server secret | Communication preference links |
+| `STRIPE_BILLING_ENABLED` | Server config | Keep `false` until the deferred production integration is fully validated |
+| Stripe keys, OAuth client/state secrets, webhook secrets, and fee basis points | Server secrets | Required only when Stripe billing is explicitly enabled |
 
-Use platform environment settings or `.env.local`; never commit actual values. The current example root domain still requires a migration decision from the legacy placeholder to the approved domain model.
+Never commit values. The combined release goes directly to production after all milestones are complete; it does not use a staging promotion. Production must not use test Stripe keys or Prices.
 
 ## Supabase
 
-1. Create/select the correct project.
-2. Apply migrations `0001` through `0008` in order.
-3. Verify extensions, tables, functions, RLS, policies, indexes, and `tenant-assets`.
-4. Configure auth site URL and allowed redirect URLs for local, preview, and production.
-5. Reconcile generated TypeScript types.
-6. Run the staging RLS/tenant-isolation matrix.
+1. Select the correct environment-specific project.
+2. Apply migrations `0001` through `0040` in order.
+3. Verify tables, functions, triggers, RLS policies, indexes, and storage policies.
+4. Configure exact local, preview, and production authentication redirects.
+5. Run the tenant-isolation matrix before the production release.
 
-Do not expose the service-role key to browser code.
+Do not expose the service-role key to browser code. Migrations are validated locally and applied to production only during the approved combined release.
 
-## Vendor setup status
+## Vercel environments and domains
 
-- **Stripe:** configure only after billing model approval; SDK/routes/webhooks are not implemented.
-- **Resend:** configure domain, sender, and templates after email integration exists.
-- **AI providers:** tenant-owned keys are entered at Organization Settings → Integrations → AI Providers; never add customer keys to environment variables or documentation.
-- **Sentry/PostHog:** recommended, not installed.
+- `main` is the production source for `upnexx.net`.
+- Feature branches create preview deployments with non-production resources.
+- The combined production push requires successful checks and explicit approval after all milestones are complete.
 
-## Commands
+Set variables separately for Preview and Production. The health probe is `GET /api/health`; it reports only the environment label, named check statuses, and a correlation ID. Responses carry `x-correlation-id` for traceability.
+
+Custom domains use a strict production lifecycle: tenant request, TXT ownership challenge, live route verification, hosting-provider certificate issuance, recorded SSL evidence, platform activation, canonical redirect validation, rollback rehearsal, then reactivation. Configuration alone never marks a check passed. Keep the managed `{tenant}.upnexx.net` hostname available as the rollback route. See [Milestone 23](44_MILESTONE_23_CUSTOM_DOMAINS.md).
+
+## Vendor status
+
+- **Stripe:** production billing code is implemented but deferred for the initial release. Set `STRIPE_BILLING_ENABLED=false`; checkout, portals, Connect, callbacks, webhooks, and paid-membership actions remain fail-closed until a later approved integration release.
+- **Resend:** communication routes and signed webhook handling exist; use separate environment keys, senders, recipient safeguards, and webhook secrets.
+- **AI providers:** tenant-owned credentials are entered under Workspace Settings → AI Providers and encrypted server-side.
+- **Monitoring:** structured application logs are present. External error tracking and analytics remain unconfigured.
+
+## Release checks
 
 ```powershell
-npm run dev
-npm run lint
-npm run typecheck
-npm test
-npm run test:coverage
-npm run test:e2e
-npm run build
-npm start
+npm.cmd run lint
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
+npm.cmd run test:e2e
+npm.cmd run release:preflight
 ```
 
-## Vercel configuration
+The preflight must run from the clean committed release source. Its commit SHA and artifact SHA-256 are entered in Platform Admin → Production Releases. A dirty-worktree override is for local validation only and must never be used as approval evidence.
 
-Recommended defaults:
-
-- Framework preset: Next.js
-- Root directory: repository directory containing `package.json` and `app`
-- Install: `npm install`
-- Build: `npm run build`
-- Output: automatic Next.js output
-- Node version: current supported LTS matching local/CI
-- Environment variables: separately configured for preview and production
-
-### “Couldn't find any pages or app directory”
-
-Likely causes:
-
-1. Vercel root directory points above/below the Next.js application.
-2. Application is stored in a subfolder but root is not set to it.
-3. `app` or `pages` was not committed/pushed.
-4. The wrong repository or branch was selected.
-5. Build settings override the framework/root incorrectly.
-
-Confirm the selected deployment commit contains `package.json`, `next.config.ts`, and `app/layout.tsx` under the configured root. Do not “fix” this by copying secrets or moving production files without understanding the repository layout.
-
-## Deployment flow
-
-```mermaid
-flowchart LR
-  C[Feature branch] --> Q[Lint + type + tests + build]
-  Q --> P[Preview deployment]
-  P --> V[Product/security/QA validation]
-  V --> M[Approved merge]
-  M --> D[Production deployment]
-  D --> S[Smoke tests + monitoring]
-  S -->|Failure| R[Rollback / forward fix]
-```
-
-Preview deployments must use non-production or carefully isolated data and valid Supabase redirect URLs.
-
-## Domains and DNS
-
-Approved product domain: `upnexx.net`.
-
-Proposed roles requiring validation:
-
-- `www.upnexx.net` — marketing site
-- `app.upnexx.net` — authenticated platform
-- `{tenant}.upnexx.net` or custom domains — tenant experiences
-
-Cloudflare may provide DNS/edge protection while Vercel hosts the application. Configure CNAME/A records according to vendor instructions, verify ownership, enable SSL, set canonical redirects, and add SPF/DKIM/DMARC for email. Never guess DNS target values.
+After the combined release, validate migrations, tenant isolation, webhook signatures, email safeguards, authentication redirects, mobile navigation, error recovery, and `/api/health` in production.
 
 ## Rollback and recovery
 
-- Keep previous deploy available for application rollback.
-- Treat database migrations separately; prefer forward-compatible additive changes.
-- Record deploy, migration, environment, and incident ownership.
-- Smoke test landing, auth, tenant routing, content, member access, AI, and billing if enabled.
-- Verify backup/restore rather than relying on configuration alone.
-
-## Monitoring
-
-**Recommended:** Vercel runtime metrics, Sentry errors/traces, uptime checks, Supabase health/capacity, structured logs, AI-provider latency/cost, Stripe webhook/reconciliation, and consent-aware PostHog funnels.
+- Retain the previous Vercel deployment for immediate application rollback.
+- Prefer additive, backward-compatible migrations and a forward corrective migration over destructive rollback SQL.
+- Record the deployed commit, migration set, environment changes, validation owner, and approval.
+- After rollback, smoke test landing, authentication, tenant routing, content, support, AI, email, and billing access if enabled.
+- Verify Supabase backups and restoration procedures separately; configuration is not a backup.
 
 ## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
-| Unstyled/giant SVG page | Stale dev process or CSS chunk 404 after building during dev; restart server |
-| `fetch failed` during login | Supabase reachability and server network permissions |
-| Route 404 | Correct App Router path, commit, and Vercel root |
-| Tenant missing | domain/slug record, membership, resolver order, and migration state |
-| Content schema error | migrations 0004/0005 applied and schema cache refreshed |
-| AI key error | encryption key format/stability and server-only environment |
+| Health returns 503/configuration failed | Required variable names in the correct Vercel scope; no values are returned |
+| Health returns 503/database failed | Supabase URL/key pairing, reachability, RLS access, and project status |
+| Login fetch failure | Supabase reachability and authentication redirect configuration |
+| Tenant missing | Domain/slug record, membership, resolver order, and applied migrations |
+| Content schema error | Migration order and Supabase schema cache |
+| AI credential error | Stable encryption key and server-only configuration |
 
-## Open questions
+## Remaining operator decisions
 
-- Are Vercel and Cloudflare formally approved?
-- Which subdomain model is canonical?
-- Which CI system and protected-branch rules will be used?
-- What are production RPO/RTO and rollback authority?
+- Confirm the Vercel production branch in the Vercel UI.
+- Confirm DNS ownership and production wildcard-domain targets.
+- Assign deployment, rollback, incident, RPO, and RTO authority.
+- Validate production variable scope without disclosing values.
 
-## Related documents
-
-[System Architecture](03_System_Architecture.md) · [Security](12_Security_and_Privacy.md) · [Testing and QA](14_Testing_and_Quality_Assurance.md)
+Related: [GitHub/Vercel handoff](17_GitHub_Vercel_Deployment_Handoff.md), [Security](12_Security_and_Privacy.md), [Milestone 1 report](22_MILESTONE_1_STABILITY_NAVIGATION.md).

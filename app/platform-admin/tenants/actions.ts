@@ -3,11 +3,12 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getPlatformAdministrator } from "@/lib/platform-context";
 import { databaseErrorMessage, isMissingEditableMembershipMetadata } from "@/lib/supabase/error";
 import { withoutEditableMembershipMetadata } from "@/lib/membership-plan-compat";
 import { featureCatalog, membershipTemplateIds, membershipTemplates, platformPlanSlugs, tenantTypes } from "@/lib/subscriptions";
 import { tenantHostname, tenantOrigin, validateTenantSlug } from "@/lib/tenant-domains";
+import { cookies } from "next/headers";
 
 const tenantSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -32,7 +33,19 @@ const tenantSchema = z.object({
   if (error) context.addIssue({ code: z.ZodIssueCode.custom, path: ["slug"], message: error });
 });
 
-const platformRoles = new Set(["platform_owner", "platform_admin"]);
+export async function enterTenantWorkspace(formData: FormData) {
+  const tenantId = String(formData.get("tenantId") ?? "");
+  if (!z.string().uuid().safeParse(tenantId).success) redirect(destination("Choose a valid tenant workspace.", "error"));
+  const actor = await getPlatformAdministrator("platform.tenants.manage");
+  if (!actor) redirect("/login?next=%2Fplatform-admin%2Ftenants");
+  const user = actor.user;
+  const admin = createAdminClient();
+  const { data: tenant } = await admin.from("tenants").select("id,status").eq("id", tenantId).maybeSingle();
+  if (!tenant || tenant.status !== "active") redirect(destination("Only active tenant workspaces can be opened.", "error"));
+  (await cookies()).set("upnexx-platform-tenant", tenant.id, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 8 });
+  await admin.from("audit_logs").insert({ tenant_id: tenant.id, user_id: user.id, action: "platform.tenant_workspace.entered", entity_type: "tenant", entity_id: tenant.id, metadata: { acting_role: actor.role } });
+  redirect("/dashboard");
+}
 
 function destination(message: string, type: "success" | "error") {
   return `/platform-admin/tenants?${type}=${encodeURIComponent(message)}`;
@@ -63,15 +76,11 @@ export async function createTenant(formData: FormData) {
     redirect(destination("Check the tenant name, URL slug, owner email, and brand colors.", "error"));
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  const platformRole = user?.app_metadata?.platform_role;
-
-  if (!user || !platformRoles.has(platformRole)) {
+  const actor = await getPlatformAdministrator("platform.tenants.manage");
+  if (!actor) {
     redirect(destination("Only a platform owner or platform administrator can create tenants.", "error"));
   }
+  const user = actor.user;
 
   const admin = createAdminClient();
   const input = parsed.data;
@@ -169,15 +178,22 @@ export async function createTenant(formData: FormData) {
     if (membershipError) throw membershipError;
 
     const { error: aiSettingsError } = await admin.from("tenant_ai_settings").upsert(
-      { tenant_id: tenant.id, enabled: input.aiAccessMode !== "disabled", updated_at: new Date().toISOString() },
+      {
+        tenant_id: tenant.id,
+        enabled: input.subscriptionStatus === "trialing" && input.trialDays > 0
+          ? true
+          : input.aiAccessMode !== "disabled",
+        updated_at: new Date().toISOString()
+      },
       { onConflict: "tenant_id" }
     );
     if (aiSettingsError) throw aiSettingsError;
 
-    const { data: plan, error: planError } = await admin.from("platform_plans").select("id,ai_credit_allowance").eq("slug", input.planSlug).single();
+    const { data: plan, error: planError } = await admin.from("platform_plans").select("id,name,ai_credit_allowance").eq("slug", input.planSlug).single();
     if (planError || !plan) throw planError ?? new Error("The selected platform plan is unavailable.");
     const now = new Date();
     const trialEndsAt = input.trialDays > 0 ? new Date(now.getTime() + input.trialDays * 86400000).toISOString() : null;
+    const isTrial = input.subscriptionStatus === "trialing" && input.trialDays > 0;
     const complimentary = input.planSlug === "complimentary" || input.subscriptionStatus === "complimentary";
     const { error: subscriptionError } = await admin.from("tenant_subscriptions").upsert({
       tenant_id: tenant.id,
@@ -186,6 +202,11 @@ export async function createTenant(formData: FormData) {
       billing_frequency: complimentary ? "none" : input.billingFrequency,
       trial_starts_at: input.trialDays ? now.toISOString() : null,
       trial_ends_at: trialEndsAt,
+      trial_days_granted: isTrial ? input.trialDays : null,
+      trial_status: isTrial ? "active" : null,
+      trial_plan_name: isTrial ? (input.planSlug === "trial" ? "Professional" : plan.name) : "Professional",
+      trial_changed_by: user.id,
+      trial_changed_role: actor.role,
       starts_at: now.toISOString(),
       custom_price: input.customPrice === "" ? null : input.customPrice,
       complimentary,
@@ -200,11 +221,11 @@ export async function createTenant(formData: FormData) {
     const entitlements = featureCatalog.map(({ key: featureKey }) => ({
         tenant_id: tenant.id,
         feature_key: featureKey,
-        enabled: selectedFeatures.has(featureKey) && (input.aiAccessMode !== "disabled" || featureKey !== "creator_ai_studio"),
-        source: "override",
+        enabled: isTrial || (selectedFeatures.has(featureKey) && (input.aiAccessMode !== "disabled" || featureKey !== "creator_ai_studio")),
+        source: isTrial ? "plan" : "override",
         updated_at: now.toISOString()
       }));
-    if (input.aiAccessMode === "disabled") {
+    if (input.aiAccessMode === "disabled" && !isTrial) {
       entitlements.push({
         tenant_id: tenant.id,
         feature_key: "creator_ai_studio",
@@ -404,7 +425,7 @@ const updateSchema = z.object({
   name: z.string().trim().min(2).max(100),
   tenantType: z.enum(tenantTypes),
   planSlug: z.enum(platformPlanSlugs),
-  subscriptionStatus: z.enum(["trialing", "active", "past_due", "canceled"]),
+  subscriptionStatus: z.enum(["trialing", "active", "past_due", "canceled", "expired_trial"]),
   billingFrequency: z.enum(["monthly", "annual", "custom", "none"]),
   aiCreditAllowance: z.coerce.number().int().min(0),
   customPrice: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
@@ -419,9 +440,9 @@ export async function updateTenant(formData: FormData) {
     features: formData.getAll("features").map(String)
   });
   if (!parsed.success) redirect(destination("Check the tenant subscription fields.", "error"));
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !platformRoles.has(user.app_metadata?.platform_role)) redirect(destination("Platform administrator access is required.", "error"));
+  const actor = await getPlatformAdministrator("platform.tenants.manage");
+  if (!actor) redirect(destination("Platform administrator access is required.", "error"));
+  const user = actor.user;
   const admin = createAdminClient();
   const input = parsed.data;
   const { data: previousCredentialPolicy } = await admin
@@ -470,7 +491,7 @@ export async function updateTenant(formData: FormData) {
       action: "tenant.ai_credential_management_permission.changed",
       entity_type: "feature_flag",
       metadata: {
-        acting_role: String(user.app_metadata?.platform_role),
+        acting_role: actor.role,
         enabled: input.tenantCanManageAiCredentials
       }
     });

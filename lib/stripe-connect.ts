@@ -1,4 +1,5 @@
 import "server-only";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type StripeAccountSnapshot = {
   id: string;
@@ -34,29 +35,72 @@ async function stripeRequest<T>(path: string, init?: RequestInit): Promise<T> {
   return result as T;
 }
 
-export async function createConnectedAccount(email: string) {
-  const body = new URLSearchParams({
-    type: "express",
-    email,
-    "capabilities[card_payments][requested]": "true",
-    "capabilities[transfers][requested]": "true"
-  });
-  return stripeRequest<StripeAccountSnapshot>("/accounts", { method: "POST", body });
+function connectClientId() {
+  const value = process.env.STRIPE_CONNECT_CLIENT_ID;
+  if (!value) throw new Error("Stripe Connect Standard onboarding is not configured.");
+  return value;
 }
 
 export async function retrieveConnectedAccount(accountId: string) {
   return stripeRequest<StripeAccountSnapshot>(`/accounts/${encodeURIComponent(accountId)}`);
 }
 
-export async function createOnboardingLink(accountId: string, returnUrl: string, refreshUrl: string) {
-  const body = new URLSearchParams({
-    account: accountId,
-    type: "account_onboarding",
-    return_url: returnUrl,
-    refresh_url: refreshUrl,
-    collect: "eventually_due"
+function connectStateSecret() {
+  const value = process.env.STRIPE_CONNECT_STATE_SECRET;
+  if (!value || value.length < 32) throw new Error("Stripe Connect state signing is not configured.");
+  return value;
+}
+
+export function createConnectState(tenantId: string, userId: string) {
+  const payload = Buffer.from(JSON.stringify({ tenantId, userId, expiresAt: Date.now() + 10 * 60_000 })).toString("base64url");
+  const signature = createHmac("sha256", connectStateSecret()).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+export function verifyConnectState(state: string) {
+  const [payload, signature] = state.split(".");
+  if (!payload || !signature) return null;
+  const expected = createHmac("sha256", connectStateSecret()).update(payload).digest("base64url");
+  const suppliedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (suppliedBuffer.length !== expectedBuffer.length || !timingSafeEqual(suppliedBuffer, expectedBuffer)) return null;
+  const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { tenantId?: string; userId?: string; expiresAt?: number };
+  if (!parsed.tenantId || !parsed.userId || !parsed.expiresAt || parsed.expiresAt < Date.now()) return null;
+  return { tenantId: parsed.tenantId, userId: parsed.userId };
+}
+
+export function createStandardConnectUrl(state: string, redirectUri: string, email: string) {
+  const url = new URL("https://connect.stripe.com/oauth/authorize");
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("client_id", connectClientId());
+  url.searchParams.set("scope", "read_write");
+  url.searchParams.set("state", state);
+  url.searchParams.set("redirect_uri", redirectUri);
+  if (email) url.searchParams.set("stripe_user[email]", email);
+  return url.toString();
+}
+
+export async function exchangeStandardConnectCode(code: string) {
+  const response = await fetch("https://connect.stripe.com/oauth/token", {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${stripeSecret()}:`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ code, grant_type: "authorization_code" }),
+    cache: "no-store"
   });
-  return stripeRequest<{ url: string; expires_at: number }>("/account_links", { method: "POST", body });
+  const result = await response.json() as { stripe_user_id?: string; error_description?: string };
+  if (!response.ok || !result.stripe_user_id) throw new Error(result.error_description ?? "Stripe account authorization failed.");
+  return result.stripe_user_id;
+}
+
+export async function deauthorizeStandardAccount(accountId: string) {
+  const response = await fetch("https://connect.stripe.com/oauth/deauthorize", {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${stripeSecret()}:`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: connectClientId(), stripe_user_id: accountId }),
+    cache: "no-store"
+  });
+  const result = await response.json() as { error_description?: string };
+  if (!response.ok) throw new Error(result.error_description ?? "Stripe account disconnection failed.");
 }
 
 export function stripeAccountValues(account: StripeAccountSnapshot) {

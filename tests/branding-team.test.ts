@@ -29,13 +29,13 @@ describe("team invitation security", () => {
   it("supports every tenant team role exposed by the product", () => {
     expect(teamRoleKeys).toEqual([
       "tenant_admin",
+      "billing_admin",
       "communication_manager",
       "content_manager",
-      "course_manager",
-      "event_manager",
-      "community_manager",
+      "support_manager",
       "analyst",
-      "support_staff"
+      "contributor",
+      "viewer"
     ]);
   });
 

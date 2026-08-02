@@ -56,7 +56,9 @@ export function MembershipPlanManager() {
     });
     const result = await response.json();
     if (!response.ok) return setMessage(result.error ?? "Unable to save the membership plan.");
-    setMessage(result.paymentSetupRequired
+    setMessage(result.billingWarning
+      ? `Plan saved as inactive because Stripe price synchronization failed: ${result.billingWarning}`
+      : result.paymentSetupRequired
       ? "Paid plan saved as a draft. Connect and finish Stripe setup before publishing it."
       : result.metadataDeferred
       ? "Membership plan saved. Apply database migration 0008 to enable colors, benefits, and template metadata."

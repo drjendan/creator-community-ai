@@ -39,10 +39,14 @@ describe("Communication Hub security", () => {
     expect(result.error).not.toContain("re_secret");
   });
 
-  it("declares every Communication Hub navigation item behind an entitlement", () => {
+  it("exposes one consolidated Communication Hub entry behind an entitlement", () => {
     const communicationItems = dashboardNavItems.filter((item) => item.href.startsWith("/dashboard/communications"));
-    expect(communicationItems.length).toBeGreaterThan(5);
-    expect(communicationItems.every((item) => Boolean(item.featureKey))).toBe(true);
+    expect(communicationItems).toHaveLength(1);
+    expect(communicationItems[0]).toMatchObject({
+      label: "Communication Hub",
+      href: "/dashboard/communications",
+      featureKey: "communication_hub"
+    });
   });
 
   it("creates tenant-scoped tables and enables RLS in migration 0009", () => {

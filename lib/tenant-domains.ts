@@ -47,3 +47,17 @@ export function tenantOrigin(slug: string) {
   return `${protocol}://${tenantHostname(slug)}${port}`;
 }
 
+export function normalizeCustomHostname(value: string) {
+  return value.trim().toLowerCase().replace(/\.$/, "");
+}
+
+export function validateCustomHostname(value: string) {
+  const hostname = normalizeCustomHostname(value);
+  if (hostname.includes("://") || hostname.includes("/") || hostname.includes(":")) return "Enter a hostname only, without a protocol, path, or port.";
+  if (hostname === "localhost" || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) return "Localhost and IP addresses cannot be custom domains.";
+  if (hostname === rootDomain() || hostname.endsWith(`.${rootDomain()}`)) return "UpNexx-managed hostnames are assigned through the tenant subdomain workflow.";
+  if (hostname.length > 253 || !hostname.includes(".")) return "Enter a fully qualified domain name.";
+  const labels = hostname.split(".");
+  if (labels.some((label) => !tenantSlugPattern.test(label))) return "Each domain label must use letters, numbers, or interior hyphens.";
+  return null;
+}

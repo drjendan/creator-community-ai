@@ -2,6 +2,9 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getActiveTenantManager } from "@/lib/tenant-context";
+import { getTenantTrialAccess, standardTrialFeatureKeys } from "@/lib/trials";
+
+export const defaultTenantFeatures = ["podcasts", "courses", "resources", "events"] as const;
 
 export const communicationFeatureKeys = [
   "communication_hub",
@@ -23,7 +26,19 @@ export async function getTenantEntitlements(tenantId: string, supabase?: Supabas
     client = context.supabase;
   }
   const { data } = await client.from("tenant_feature_entitlements").select("feature_key,enabled").eq("tenant_id", tenantId);
-  return new Map((data ?? []).map((item: { feature_key: string; enabled: boolean }) => [item.feature_key, item.enabled]));
+  const entitlements = new Map((data ?? []).map((item: { feature_key: string; enabled: boolean }) => [item.feature_key, item.enabled]));
+  // Tenants created before feature entitlements existed retain the core content
+  // product. Explicit false rows still win and remain visibly plan-restricted.
+  for (const key of defaultTenantFeatures) {
+    if (!entitlements.has(key)) entitlements.set(key, true);
+  }
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const trial = await getTenantTrialAccess(tenantId);
+    if (trial.isActiveTrial) {
+      for (const key of standardTrialFeatureKeys) entitlements.set(key, true);
+    }
+  }
+  return entitlements;
 }
 
 export async function requireTenantFeature(featureKey: string) {

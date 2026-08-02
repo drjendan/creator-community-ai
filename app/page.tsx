@@ -138,9 +138,9 @@ export default function HomePage() {
       <footer id="resources" className="bg-brand-950 py-14 text-brand-300">
         <Container className="grid gap-10 border-b border-white/10 pb-10 md:grid-cols-[1.6fr_repeat(3,1fr)]">
           <div><BrandMark inverse /><p className="mt-5 max-w-xs text-sm leading-6">Empowering creators. Enriching communities. Driving growth.</p></div>
-          {[{ heading: "Platform", links: [["Features", "#features"], ["Solutions", "#solutions"]] }, { heading: "Company", links: [["Pricing", "#pricing"], ["Resources", "#resources"]] }, { heading: "Account", links: [["Log In", "/login"], ["Start Free Trial", "/request-demo"], ["Book a Demo", "/request-demo"]] }].map(({ heading, links }) => <div key={heading}><p className="font-display font-bold text-white">{heading}</p><div className="mt-4 space-y-3">{links.map(([label, href]) => <Link key={label} href={href} className="block text-sm hover:text-highlight-300">{label}</Link>)}</div></div>)}
+          {[{ heading: "Platform", links: [["Features", "#features"], ["Solutions", "#solutions"]] }, { heading: "Company", links: [["Pricing", "#pricing"], ["Resources", "#resources"]] }, { heading: "Account", links: [["Log In", "/login"], ["Create Account", "/signup"], ["Book a Demo", "/request-demo"]] }].map(({ heading, links }) => <div key={heading}><p className="font-display font-bold text-white">{heading}</p><div className="mt-4 space-y-3">{links.map(([label, href]) => <Link key={label} href={href} className="block text-sm hover:text-highlight-300">{label}</Link>)}</div></div>)}
         </Container>
-        <Container className="pt-6 text-center text-xs text-brand-400">Powered by Nexx Jenn Technologies</Container>
+        <Container className="flex flex-col items-center justify-between gap-4 pt-6 text-center text-xs text-brand-400 sm:flex-row"><span>Powered by Nexx Jenn Technologies</span><span className="flex flex-wrap justify-center gap-4"><Link href="/terms" className="hover:text-white">Terms</Link><Link href="/privacy" className="hover:text-white">Privacy</Link><Link href="/cookies" className="hover:text-white">Cookies</Link><Link href="/acceptable-use" className="hover:text-white">Acceptable Use</Link></span></Container>
       </footer>
     </>
   );

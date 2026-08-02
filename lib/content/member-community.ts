@@ -15,10 +15,11 @@ export async function getAccessibleCommunitySpaces(slug: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("community_spaces")
-    .select("id,name,description,status")
+    .select("id,name,slug,description,status,featured,sort_order")
     .eq("tenant_id", tenantId)
     .eq("status", "active")
-    .order("created_at", { ascending: true });
+    .order("featured", { ascending: false })
+    .order("sort_order", { ascending: true });
   return data ?? [];
 }
 
@@ -28,7 +29,7 @@ export async function getPublicMembershipPlans(slug: string) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("tenant_membership_plans")
-    .select("id,name,description,plan_type,price_monthly,currency,community_access,ai_access")
+    .select("id,name,description,plan_type,price_monthly,price_annual,currency,community_access,ai_access,stripe_monthly_price_id,stripe_annual_price_id")
     .eq("tenant_id", tenantId)
     .eq("status", "active")
     .eq("visibility", "public")

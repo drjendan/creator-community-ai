@@ -23,7 +23,14 @@ type ContentItem = {
   cover_image_url?: string;
   content_url?: string;
   resource_type?: string;
+  instructor?: string;
   updated_at?: string;
+  module_count?: number;
+  lesson_count?: number;
+  material_count?: number;
+  quiz_count?: number;
+  enrollment_count?: number;
+  completion_count?: number;
 };
 
 const copy: Record<ContentType, { title: string; singular: string; description: string; upload: string }> = {
@@ -107,6 +114,7 @@ export function TenantContentManager({ type }: { type: ContentType }) {
     const data = new FormData();
     data.set("file", file);
     data.set("folder", labels.upload);
+    data.set("assetRole", target === "thumbnail" ? "cover" : "content");
     const response = await fetch("/api/tenant-assets", { method: "POST", body: data });
     const result = await response.json();
     if (!response.ok) {
@@ -139,7 +147,8 @@ export function TenantContentManager({ type }: { type: ContentType }) {
       mediaUrl: uploadedUrl || String(data.get("mediaUrl") ?? ""),
       thumbnailUrl,
       secondaryUrl: videoUrl,
-      resourceType: String(data.get("resourceType") ?? "file")
+      resourceType: String(data.get("resourceType") ?? "file"),
+      instructor: String(data.get("instructor") ?? "")
     };
     const response = await fetch(`/api/tenant-content/${type}`, {
       method: "POST",
@@ -274,10 +283,15 @@ export function TenantContentManager({ type }: { type: ContentType }) {
                 )}
               </>
             )}
+            {type === "courses" && (
+              <Field label="Instructor" htmlFor={`${type}-instructor`} className="md:col-span-2">
+                <Input id={`${type}-instructor`} name="instructor" defaultValue={editing?.instructor} placeholder="Instructor or facilitator name" />
+              </Field>
+            )}
             {type === "resources" && (
               <Field label="Resource type" htmlFor={`${type}-resource-type`}>
                 <Select id={`${type}-resource-type`} name="resourceType" defaultValue={editing?.resource_type ?? "file"}>
-                  <option value="file">Download</option><option value="link">Link</option><option value="video">Video</option><option value="audio">Audio</option>
+                  <option value="file">File</option><option value="guide">Guide</option><option value="worksheet">Worksheet</option><option value="template">Template</option><option value="checklist">Checklist</option><option value="ebook">Ebook</option><option value="article">Article</option><option value="tool">Tool</option><option value="video">Video</option><option value="audio">Audio</option><option value="link">Link</option>
                 </Select>
               </Field>
             )}
@@ -318,8 +332,11 @@ export function TenantContentManager({ type }: { type: ContentType }) {
                 )}
                 <h2 className="mt-5 font-display text-xl font-bold text-brand-900">{item.title}</h2>
                 <p className="mt-2 line-clamp-2 text-sm leading-6 text-brand-600">{item.description || `No ${labels.singular} description added.`}</p>
+                {type === "courses" && <p className="mt-3 text-xs font-semibold text-brand-500">{item.module_count ?? 0} modules · {item.lesson_count ?? 0} lessons · {item.material_count ?? 0} materials · {item.quiz_count ?? 0} assessments · {item.enrollment_count ?? 0} enrolled</p>}
                 {type === "events" && item.starts_at && <p className="mt-3 text-sm font-bold text-brand-700">{new Date(item.starts_at).toLocaleString()}</p>}
                 <div className="mt-auto flex items-center gap-2 pt-5">
+                  {type === "courses" && <Button href={`/dashboard/courses/${item.id}`} size="sm" variant="secondary"><BookOpen className="h-4 w-4" /> Open builder</Button>}
+                  {type === "resources" && <Button href={`/dashboard/resources/${item.id}`} size="sm" variant="secondary"><FileText className="h-4 w-4" /> Details</Button>}
                   {contentUrl ? <a href={contentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-accent-600 px-4 py-2 text-sm font-bold text-white"><ExternalLink className="h-4 w-4" />{type === "events" ? "Open event" : "Open file"}</a> : <span className="text-xs font-semibold text-brand-400">{type === "events" ? "No event URL" : "No file attached"}</span>}
                   <button onClick={() => openEdit(item)} className="ml-auto rounded-lg p-2 text-accent-700 hover:bg-accent-50" aria-label={`Edit ${item.title}`}><Edit3 className="h-4 w-4" /></button>
                   <button onClick={() => void remove(item)} className="rounded-lg p-2 text-red-700 hover:bg-red-50" aria-label={`Delete ${item.title}`}><Trash2 className="h-4 w-4" /></button>
@@ -338,7 +355,7 @@ export function TenantContentManager({ type }: { type: ContentType }) {
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-brand-100 text-brand-700"><tr><th className="px-5 py-3">Title</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Access</th>{type === "episodes" && <th className="px-5 py-3">Video</th>}<th className="px-5 py-3 text-right">Actions</th></tr></thead>
-              <tbody>{items.map((item) => <tr key={item.id} className="border-t border-brand-200"><td className="px-5 py-4 font-bold text-brand-900">{item.title}</td><td className="px-5 py-4 capitalize text-brand-600">{item.status}</td><td className="px-5 py-4 capitalize text-brand-600">{item.access_level ?? "—"}</td>{type === "episodes" && <td className="px-5 py-4">{item.video_url && item.status === "published" && tenantSlug ? <Link href={`/demo/${tenantSlug}/episodes/${item.id}`} className="inline-flex items-center gap-2 rounded-lg bg-accent-50 px-3 py-2 text-xs font-bold text-accent-700"><PlayCircle className="h-4 w-4" />Watch</Link> : <span className="text-xs text-brand-400">{item.video_url ? "Publish to watch" : "No video"}</span>}</td>}<td className="px-5 py-4"><div className="flex justify-end gap-2"><button onClick={() => openEdit(item)} className="rounded-lg p-2 text-accent-700 hover:bg-accent-50" aria-label={`Edit ${item.title}`}><Edit3 className="h-4 w-4" /></button><button onClick={() => void remove(item)} className="rounded-lg p-2 text-red-700 hover:bg-red-50" aria-label={`Delete ${item.title}`}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}</tbody>
+              <tbody>{items.map((item) => <tr key={item.id} className="border-t border-brand-200"><td className="px-5 py-4 font-bold text-brand-900">{item.title}</td><td className="px-5 py-4 capitalize text-brand-600">{item.status}</td><td className="px-5 py-4 capitalize text-brand-600">{item.access_level ?? "—"}</td>{type === "episodes" && <td className="px-5 py-4">{(item.video_url || item.audio_url) && item.status === "published" && tenantSlug ? <Link href={`/demo/${tenantSlug}/episodes/${item.id}`} className="inline-flex items-center gap-2 rounded-lg bg-accent-50 px-3 py-2 text-xs font-bold text-accent-700"><PlayCircle className="h-4 w-4" />Play</Link> : <span className="text-xs text-brand-400">{item.video_url || item.audio_url ? "Publish to play" : "No media"}</span>}</td>}<td className="px-5 py-4"><div className="flex justify-end gap-2">{type === "courses" && <Link href={`/dashboard/courses/${item.id}`} className="rounded-lg p-2 text-accent-700 hover:bg-accent-50" aria-label={`Manage lessons for ${item.title}`}><BookOpen className="h-4 w-4" /></Link>}{type === "episodes" && <Link href={`/dashboard/podcast/${item.id}`} className="rounded-lg p-2 text-accent-700 hover:bg-accent-50" aria-label={`Manage episode details for ${item.title}`}><FileText className="h-4 w-4" /></Link>}{type === "events" && <Link href={`/dashboard/events/${item.id}`} className="rounded-lg p-2 text-accent-700 hover:bg-accent-50" aria-label={`Manage event experience for ${item.title}`}><CalendarDays className="h-4 w-4" /></Link>}<button onClick={() => openEdit(item)} className="rounded-lg p-2 text-accent-700 hover:bg-accent-50" aria-label={`Edit ${item.title}`}><Edit3 className="h-4 w-4" /></button><button onClick={() => void remove(item)} className="rounded-lg p-2 text-red-700 hover:bg-red-50" aria-label={`Delete ${item.title}`}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}</tbody>
             </table>
           </div>
         )}

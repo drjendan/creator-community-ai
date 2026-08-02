@@ -89,8 +89,8 @@ Podcasters, educators, coaches, consultants, churches, authors, speakers, associ
 
 ### Core platform capabilities
 
-- **Implemented or partial:** multi-tenant accounts, tenant branding, role-aware administration, podcasts/video, course records, resources, events, community spaces, audience membership plans, tenant subscription records, content access rules, storage, creator AI generation, tenant-owned encrypted AI credentials, usage/credit schema, public/member views, onboarding tour.
-- **Planned:** member RAG assistant, recommendation delivery, administrator AI insights, full course/quiz authoring, Stripe checkout/webhooks/portal, Resend delivery, operational custom domains, production analytics and monitoring, mobile applications, marketplace, public API.
+- **Implemented baseline:** multi-tenant accounts and access, branding, content/course/resource/event/community/member workflows, audience and platform billing boundaries, protected storage, Creator AI Studio, source-grounded Member AI Coach, explainable recommendations, administrator insights, durable Resend delivery, operational custom domains, analytics summaries, governance/security controls, and production release evidence.
+- **Planned or external:** advanced vector ingestion/semantic ranking, external monitoring and product analytics, native mobile applications, marketplace, and public API. Live provider accounts and production evidence remain operator responsibilities.
 
 ### Competitive positioning
 
@@ -162,4 +162,3 @@ An extensible intelligence layer that understands authorized tenant knowledge, m
 ## Related documents
 
 [Roadmap](07_Product_Roadmap.md) · [Go-to-Market](08_Go_To_Market_Strategy.md) · [Subscription Model](11_Subscription_and_Membership_Model.md) · [Glossary](15_Product_Glossary.md)
-

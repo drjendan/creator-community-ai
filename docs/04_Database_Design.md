@@ -77,8 +77,9 @@ The two subscription layers are intentionally separate. Stripe identifiers exist
 | `ai_conversations`, `ai_messages` | Member conversation history | Schema implemented; assistant planned |
 | `ai_usage`, `tenant_ai_usage`, `tenant_ai_credit_transactions`, `ai_feature_credit_config` | Usage and credit metering | Implemented/Partial |
 | `ai_generations` | Saved creator AI drafts | Implemented |
-| `member_recommendations` | Ranked member suggestions | Schema only/Planned |
-| `administrator_ai_insights` | Administrative findings/actions | Schema only/Planned |
+| `member_recommendations` | Explainable ranked member suggestions and feedback | Implemented baseline |
+| `administrator_ai_insights` | Qualified administrative findings and human review | Implemented baseline |
+| `data_rights_requests` | Member export/correction/closure request lifecycle | Implemented baseline |
 
 `pgvector` is created in migration 0002 and `ai_chunks.embedding` uses a 1536-dimension vector. Model compatibility, index type, ingestion jobs, and retrieval queries must be decided before production use.
 
@@ -146,7 +147,7 @@ Repository migrations include:
 Potential gaps requiring query-plan review:
 
 - composite indexes for tenant + status + publish date;
-- unique normalized custom domains and slugs;
+- query-plan review for custom-domain resolution as production volume grows (normalized hostname uniqueness is enforced);
 - vector index choice (HNSW/IVFFlat) after retrieval design;
 - idempotency keys for billing events/webhooks;
 - uniqueness rules for active audience subscriptions;

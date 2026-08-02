@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 type TourScope = "tenant" | "platform";
 type TourStep = {
@@ -52,7 +53,7 @@ const platformSteps: TourStep[] = [
   },
   {
     title: "Platform navigation",
-    description: "Tenant management creates podcast businesses. Billing & usage covers plans and subscriptions. Operations contains support, audit, domain, and platform settings.",
+    description: "UpNexx Tenants manages workspaces. Billing & Usage covers plans and entitlements. Platform Team and Settings contain internal access and configuration.",
     selector: "[data-tour='main-navigation']"
   },
   {
@@ -103,6 +104,7 @@ export function OnboardingTour({ scope, startSignal, identity = "local" }: { sco
     window.localStorage.setItem(storageKey, completed ? "completed" : "dismissed");
     setOpen(false);
   }, [storageKey]);
+  const dialogRef = useDialogFocus<HTMLElement>(open, () => close(false));
 
   useEffect(() => {
     if (!open) return;
@@ -178,9 +180,12 @@ export function OnboardingTour({ scope, startSignal, identity = "local" }: { sco
       ) : <div className="fixed inset-0 bg-brand-950/75" />}
 
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tour-title"
+        aria-describedby="tour-description"
+        tabIndex={-1}
         className="fixed z-[100] w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-brand-200 bg-white p-6 shadow-2xl"
         style={popoverStyle}
       >
@@ -189,7 +194,7 @@ export function OnboardingTour({ scope, startSignal, identity = "local" }: { sco
           <button type="button" onClick={() => close(false)} className="-mr-2 -mt-2 rounded-lg p-2 text-brand-500 hover:bg-brand-100" aria-label="Close tour"><X className="h-5 w-5" /></button>
         </div>
         <h2 id="tour-title" className="mt-3 font-display text-2xl font-extrabold text-brand-900">{step.title}</h2>
-        <p className="mt-3 text-sm leading-6 text-brand-600">{step.description}</p>
+        <p id="tour-description" className="mt-3 text-sm leading-6 text-brand-600">{step.description}</p>
         <div className="mt-5 flex gap-1.5" aria-hidden="true">
           {steps.map((_, index) => <span key={index} className={`h-1.5 rounded-full ${index === stepIndex ? "w-7 bg-accent-600" : "w-2 bg-brand-200"}`} />)}
         </div>
@@ -197,7 +202,7 @@ export function OnboardingTour({ scope, startSignal, identity = "local" }: { sco
           <button type="button" onClick={() => close(false)} className="text-sm font-bold text-brand-500 hover:text-brand-800">Skip tour</button>
           <div className="flex gap-2">
             {stepIndex > 0 && <button type="button" onClick={() => setStepIndex((value) => value - 1)} className="inline-flex items-center gap-1 rounded-lg border border-brand-200 px-3 py-2 text-sm font-bold text-brand-700 hover:bg-brand-50"><ChevronLeft className="h-4 w-4" />Back</button>}
-            <button type="button" autoFocus onClick={() => lastStep ? close(true) : setStepIndex((value) => value + 1)} className="inline-flex items-center gap-1 rounded-lg bg-accent-600 px-4 py-2 text-sm font-bold text-white hover:bg-accent-700">{lastStep ? "Finish" : "Next"}{!lastStep && <ChevronRight className="h-4 w-4" />}</button>
+            <button type="button" onClick={() => lastStep ? close(true) : setStepIndex((value) => value + 1)} className="inline-flex items-center gap-1 rounded-lg bg-accent-600 px-4 py-2 text-sm font-bold text-white hover:bg-accent-700">{lastStep ? "Finish" : "Next"}{!lastStep && <ChevronRight className="h-4 w-4" />}</button>
           </div>
         </div>
       </section>

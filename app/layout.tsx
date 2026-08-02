@@ -6,6 +6,7 @@ import "@fontsource/manrope/600.css";
 import "@fontsource/manrope/700.css";
 import "@fontsource/manrope/800.css";
 import "./globals.css";
+import { RouteAnnouncer } from "@/components/accessibility/RouteAnnouncer";
 
 export const metadata: Metadata = {
   title: {
@@ -19,7 +20,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <a className="skip-link" href="#application-content">Skip to application content</a>
+        <RouteAnnouncer />
+        <div id="application-content" tabIndex={-1}>{children}</div>
+      </body>
     </html>
   );
 }

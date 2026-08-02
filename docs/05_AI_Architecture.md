@@ -16,8 +16,8 @@
 
 ## Current status
 
-- **Implemented/Partial:** per-tenant OpenAI/Anthropic/Google configurations, AES-256-GCM credential encryption, tenant/platform context authorization, connection verification, provider adapters, creator source-to-draft generation, saved generations, and credit checks/usage schema.
-- **Schema only/Planned:** vector ingestion, member conversations, recommendations, administrator insights.
+- **Implemented/Partial:** per-tenant OpenAI/Anthropic/Google configurations, AES-256-GCM credential encryption, tenant/platform context authorization, connection verification, provider adapters, readable tenant-scoped Creator AI sources, trusted source-to-draft generation, versioned Content Library drafts, atomic credit reservation/usage records, authorized member Q&A with citations, deterministic recommendations, and qualified administrator insights.
+- **Schema only/Planned:** vector ingestion and semantic similarity ranking.
 - **Not installed:** Vercel AI SDK.
 
 Provider logic is centralized in `lib/ai/provider-adapters.ts`; tenant generation resolves an enabled, verified default through `lib/ai/tenant-ai-service.ts`. No platform-wide provider fallback is used.
@@ -26,15 +26,15 @@ Provider logic is centralized in `lib/ai/provider-adapters.ts`; tenant generatio
 
 ### Creator AI Studio
 
-The interface and output schema support episode summaries, show notes, blog posts, LinkedIn/Facebook posts, Instagram captions, X posts, email newsletters, episode topics, quiz questions, discussion questions, event descriptions, and promotional copy. These are **partial** until provider-specific output validation, evaluation, moderation, and publishing review are complete.
+The interface and output schema support episode summaries, show notes, blog posts, LinkedIn/Facebook posts, Instagram captions, X posts, email newsletters, episode topics, quiz questions, discussion questions, event descriptions, and promotional copy. Sources are selected by readable tenant title and re-resolved server-side; edited outputs retain version history. The capability remains **partial** until provider-specific output validation, evaluation, moderation, and live-provider review are complete.
 
 ### Member AI
 
-Planned capabilities: authorized content Q&A, episode/course/event/resource recommendations, learning paths, episode summaries, next-lesson suggestions, and related discussions. Current member AI pages are placeholders; no production RAG/citation workflow exists.
+Authorized content Q&A with citations and deterministic episode/course/event/resource/community recommendations are implemented. Recommendations disclose why they were selected and accept dismiss/helpfulness feedback. Semantic similarity, learning paths, and more advanced behavioral ranking remain planned.
 
 ### Administrator AI
 
-Planned: disengagement detection, retention campaign suggestions, topic/opportunity analysis, community summaries, and unanswered-question detection. Tables exist for insights but no operational generation or review workflow is implemented.
+Qualified operational signals are implemented for audience risk flags, learning completion, event attendance, email delivery, and recent community activity. They expose supporting counts and limitations and require an authorized person to review, dismiss, or reopen them. Provider-generated forecasting and autonomous action remain out of scope.
 
 ## Target service layer
 
@@ -158,8 +158,8 @@ No answer should cite or reveal a source the member cannot open. If retrieval co
 
 ```mermaid
 flowchart LR
-  A[Authorized catalog] --> R[Rules/content similarity<br/>Planned]
-  B[Member goals and activity<br/>Planned]
+  A[Authorized catalog] --> R[Deterministic rules<br/>Implemented]
+  B[Member activity<br/>Implemented]
   B --> R
   R --> F[Eligibility and diversity filter]
   F --> S[(member_recommendations)]

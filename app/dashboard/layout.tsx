@@ -1,9 +1,15 @@
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { hasSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import { getActiveTenantManager } from "@/lib/tenant-context";
+import { getActiveTenantManager, getTenantPermissionSet } from "@/lib/tenant-context";
 import { dashboardNavItems } from "@/lib/navigation";
 import { getTenantEntitlements } from "@/lib/feature-entitlements";
+import { hasCurrentLegalAcceptance } from "@/lib/legal";
+import { redirect } from "next/navigation";
+import { getTenantTrialAccess } from "@/lib/trials";
+import type { TrialExperienceState } from "@/components/dashboard/TrialExperience";
+import { getPlatformAccess } from "@/lib/platform-context";
+import type { TenantPermission } from "@/lib/permissions";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   let showPlatformAdmin = false;
@@ -12,18 +18,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let userLabel = "Account";
   let nav = dashboardNavItems.filter((item) => !item.featureKey);
   let brand: { name?: string; logoUrl?: string | null; primaryColor?: string } | undefined;
+  let trial: TrialExperienceState | undefined;
   if (hasSupabaseEnv()) {
     const supabase = await createClient();
     const {
       data: { user }
     } = await supabase.auth.getUser();
-    const role = user?.app_metadata?.platform_role;
+    if (user && !(await hasCurrentLegalAcceptance(user.id))) redirect("/legal/accept?next=%2Fdashboard");
     tourIdentity = user?.id;
     userLabel = user?.user_metadata?.full_name || user?.email || "Account";
-    showPlatformAdmin = role === "platform_owner" || role === "platform_admin";
+    showPlatformAdmin = Boolean(user && await getPlatformAccess());
     const context = await getActiveTenantManager();
     if (context) {
       tenantName = context.tenant.name;
+      trial = await getTenantTrialAccess(context.tenant.id);
       const { data: branding } = await context.supabase
         .from("tenant_branding")
         .select("organization_short_name,logo_url,primary_color")
@@ -35,22 +43,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
         primaryColor: branding?.primary_color
       };
       const entitlements = await getTenantEntitlements(context.tenant.id, context.supabase);
-      const role = context.role;
-      const allowedByRole = (label: string) => {
-        if (["tenant_owner", "tenant_admin"].includes(role)) return true;
-        if (label === "Overview" || label === "Settings") return true;
-        if (role === "communication_manager") return ["Communication Hub", "Announcements", "Messages", "Email Campaigns", "Templates", "Audience Segments", "Scheduled", "Reports", "Email Provider"].includes(label);
-        if (role === "content_manager") return ["Podcast", "Courses", "Community", "Resources", "Events", "AI Studio"].includes(label);
-        if (role === "course_manager") return label === "Courses";
-        if (role === "event_manager") return label === "Events";
-        if (["community_manager", "community_moderator"].includes(role)) return label === "Community";
-        if (role === "analyst") return ["Analytics", "Reports"].includes(label);
-        if (role === "support_staff") return label === "Members";
-        return false;
-      };
-      nav = dashboardNavItems.filter((item) => allowedByRole(item.label) && (!item.featureKey || entitlements.get(item.featureKey) === true));
+      const permissions = await getTenantPermissionSet(context.role);
+      nav = dashboardNavItems
+        .filter((item) => !item.permission || permissions.has(item.permission as TenantPermission))
+        .map((item) => ({
+          ...item,
+          locked: Boolean(item.featureKey && entitlements.get(item.featureKey) !== true),
+          lockedReason: item.featureKey && entitlements.get(item.featureKey) !== true
+            ? `${item.label} is not included in this tenant's current plan.`
+            : undefined
+        }));
     }
   }
 
-  return <DashboardShell tenantName={tenantName} userLabel={userLabel} showPlatformAdmin={showPlatformAdmin} tourIdentity={tourIdentity} nav={nav} brand={brand}>{children}</DashboardShell>;
+  return <DashboardShell tenantName={tenantName} userLabel={userLabel} showPlatformAdmin={showPlatformAdmin} tourIdentity={tourIdentity} nav={nav} brand={brand} trial={trial}>{children}</DashboardShell>;
 }

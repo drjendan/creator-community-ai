@@ -13,15 +13,17 @@ export async function unsubscribe(formData: FormData) {
   }
   const admin = createAdminClient();
   const now = new Date().toISOString();
-  await admin.from("member_communication_preferences").upsert({
-    tenant_id: parsed.tenantId,
-    user_id: parsed.userId,
-    category,
-    email_enabled: false,
-    consent_source: "unsubscribe_link",
-    unsubscribed_at: now,
-    updated_at: now
-  }, { onConflict: "tenant_id,user_id,category" });
+  if (parsed.userId) {
+    await admin.from("member_communication_preferences").upsert({
+      tenant_id: parsed.tenantId,
+      user_id: parsed.userId,
+      category,
+      email_enabled: false,
+      consent_source: "unsubscribe_link",
+      unsubscribed_at: now,
+      updated_at: now
+    }, { onConflict: "tenant_id,user_id,category" });
+  }
   if (category === "all_marketing") {
     await admin.from("communication_suppressions").upsert({
       tenant_id: parsed.tenantId,

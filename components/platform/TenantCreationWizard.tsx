@@ -35,7 +35,9 @@ const initialState: WizardState = {
 export function TenantCreationWizard({ authorized }: { authorized: boolean }) {
   const [step, setStep] = useState(0);
   const [state, setState] = useState(initialState);
-  const [features, setFeatures] = useState<Set<FeatureKey>>(() => new Set(featureCatalog.slice(0, 6).map((feature) => feature.key)));
+  const [features, setFeatures] = useState<Set<FeatureKey>>(() => new Set(featureCatalog
+    .filter((feature) => feature.key !== "creator_ai_studio" && feature.key !== "communication_byop_email")
+    .map((feature) => feature.key)));
   const [membershipTemplateOverridden, setMembershipTemplateOverridden] = useState(false);
   const selectedTemplate = membershipTemplates[state.membershipTemplate as keyof typeof membershipTemplates];
   const recommendedTemplate = recommendedMembershipTemplate(state.tenantType as keyof typeof tenantTypeLabels);

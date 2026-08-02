@@ -28,7 +28,7 @@
 
 Repository migrations enable RLS and define platform-admin, tenant-member, tenant-manager, user-owner, publication, and entitlement policies. Application queries also filter by tenant.
 
-**Needs Validation:** run live staging tests for platform owner/admin, tenant owner/admin, content manager, moderator, member, guest, cross-tenant user, suspended membership, and paid/free access. Static SQL tests are not sufficient.
+**Needs Validation:** run the approved live production verification matrix during the combined release window for platform owner/admin, tenant owner/admin, content manager, moderator, member, guest, cross-tenant user, suspended membership, and paid/free access. Static SQL tests are not sufficient; this release does not use staging.
 
 ## Authentication and authorization
 
@@ -110,7 +110,7 @@ Contacts, severity response times, notification obligations, and status-page pro
 
 ## Data rights
 
-**Planned:** authenticated tenant-aware export, correction, membership/account closure, content deletion, and full tenant offboarding. Define how billing/audit/legal records differ from removable profile/content records.
+**Implemented baseline:** authenticated tenant-aware personal export plus correction and member-account closure requests with governed resolution and audit evidence. The workflow intentionally does not perform automatic deletion. Approved retention periods, identity-provider deletion, paid-service cancellation, content deletion, and full tenant offboarding still require policy and operational decisions.
 
 ## Compliance roadmap
 
@@ -138,7 +138,7 @@ Church, education, nonprofit, health-adjacent, or children-related use does not 
 
 ## Known gaps
 
-No production rate limiter, Sentry, security-event pipeline, private paid-content bucket, automated data-rights workflow, proven restore report, live RLS matrix, member RAG protection, or formal compliance evidence.
+Durable application rate limits, a reviewable security-event pipeline, reauthorized delivery from the private tenant-media bucket, and an operational evidence workflow are implemented. External alert routing, infrastructure/WAF controls, completed restore exercises, a live production RLS matrix, and formal compliance evidence remain outstanding until operators perform and record them. Data-rights workflow controls are implemented, but approved retention/deletion operations and legal ownership remain outstanding.
 
 ## Open questions
 

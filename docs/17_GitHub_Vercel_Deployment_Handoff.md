@@ -1,173 +1,50 @@
-# UpNexx GitHub and Vercel Deployment Handoff
+# UpNexx Production Deployment Handoff
 
-**Last updated:** July 28, 2026
+**Last updated:** August 1, 2026
 
-**Local repository:** `C:\Users\danie\creator-community-ai`
+**Production source:** `main`
 
-**GitHub repository:** `https://github.com/drjendan/creator-community-ai`
+**Application root:** repository root
 
-**Branch:** `main`
+**Release model:** one combined direct-to-production release; no staging promotion
 
 ## Current status
 
-The local UpNexx application has been audited and successfully built. Pushing `main` to the connected GitHub repository triggers the production deployment in Vercel.
+Implementation is complete through Milestone 24 locally. Migrations 0018–0039 were reported successfully applied by the operator; migration 0040 remains required. No deployment is recorded as complete.
 
-## Application structure
+Pushing the approved `main` commit may trigger the connected production deployment. Do not push until the immutable release candidate contains the clean commit/artifact hashes, all production evidence gates are clear, and a Platform Owner has approved it.
 
-- The Next.js application root is the repository root:
-  `C:\Users\danie\creator-community-ai`
-- The project uses the App Router in the root-level `app` folder.
-- Main page entry point: `app/page.tsx`
-- Root layout: `app/layout.tsx`
-- The project does not use `src/app`, `src/pages`, or `pages`.
-- Vercel's Root Directory should remain the repository root.
-- An additional `upnexx` wrapper folder is not required.
+## Production package
 
-## Source included locally
+From the clean committed release source, run:
 
-The completed local commits contain the application source and supporting files, including:
-
-- `app`
-- `components`
-- `lib`
-- `public`
-- `supabase`
-- `docs`
-- `e2e`
-- `tests`
-- `scripts`
-- `middleware.ts`
-- Playwright and Vitest configuration
-- Next.js, TypeScript, Tailwind, PostCSS, and package configuration
-
-## Files intentionally excluded
-
-The following generated, local, or sensitive content is excluded:
-
-- `.next`
-- `node_modules`
-- `.env`
-- `.env.local`
-- Other local environment files
-- Supabase local state
-- `coverage`
-- `playwright-report`
-- `test-results`
-- `tmp`
-- `tsconfig.tsbuildinfo`
-- `next-env.d.ts`
-- Secrets and local cache files
-
-The repository `.gitignore` was reviewed and updated to exclude `tmp`. It does not exclude application source folders.
-
-## Local verification
-
-The following commands completed successfully:
-
-```text
-npm install
-npm run build
+```powershell
+npm.cmd run lint
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
+npm.cmd run test:e2e
+npm.cmd run release:preflight
 ```
 
-The production build passed using Next.js 15.5.21. The build generated the landing page, authentication, dashboard, platform administration, APIs, and member-facing routes.
+Use the preflight’s commit SHA and artifact SHA-256 in Platform Admin → Production Releases. A digest produced with `--allow-dirty` is local diagnostic output only.
 
-`npm install` reported 12 high-severity dependency advisories. An automatic forced audit fix was not run because it could introduce breaking dependency upgrades. These advisories should be reviewed separately.
+## Environment and external systems
 
-## Local Git commits
+Configure production values outside source control for Supabase, encryption, Stripe, Resend, cron authorization, the application/root domains, and `CUSTOM_DOMAIN_CNAME_TARGET`. Configure exact production authentication redirects, signed webhook endpoints, DNS, certificate issuance, monitoring, alert delivery, backups, and recovery ownership.
 
-The requested source commit exists locally:
+Never place secret values in Git, documentation, chat, screenshots, readiness notes, or release evidence.
 
-```text
-57aa1e8 Add UpNexx application source files for Vercel deployment
-```
+## Deployment sequence
 
-The remote repository had an unrelated history, so it was merged locally without rewriting the remote branch:
+1. Apply migration 0040 and run the schema verifier.
+2. Complete the production isolation and quality runs using the final release reference/version.
+3. Resolve or explicitly waive every production-readiness gate with evidence.
+4. Run the clean source preflight and freeze the release candidate.
+5. Obtain Platform Owner approval.
+6. Push the exact approved commit to `main` and observe the production deployment.
+7. Run health and critical-path smoke tests in production.
+8. If a critical check fails, use the retained application/domain rollback procedure and keep the failed evidence.
+9. Record deployment evidence only after production succeeds.
 
-```text
-bcad8ac Merge existing GitHub main before UpNexx source push
-```
-
-The last known GitHub `origin/main` commit was:
-
-```text
-d705f6991a496709e3a7c14e73d97451ee525c44
-```
-
-## Current blocker
-
-The attempted push returned:
-
-```text
-Permission to drjendan/creator-community-ai.git denied to focusquestsrm.
-HTTP 403
-```
-
-The GitHub CLI is not installed, so no alternate GitHub CLI login was available.
-
-## How to resume
-
-Complete either of these GitHub access steps:
-
-1. Grant the GitHub user `focusquestsrm` write access to `drjendan/creator-community-ai`; or
-2. Reauthenticate Git on this computer with a GitHub account that already has write access to the repository.
-
-Do not place a GitHub password, personal access token, Supabase key, or other secret in this document or in chat.
-
-After access is corrected, run from the application root:
-
-```text
-git status
-git push origin main
-```
-
-Then verify that GitHub contains at least:
-
-```text
-app/page.tsx
-app/layout.tsx
-components/
-lib/
-public/
-supabase/
-middleware.ts
-```
-
-After the push succeeds, trigger or retry the Vercel deployment. Leave the Vercel Root Directory at the repository root.
-
-## Vercel environment variables
-
-Configure values in Vercel Project Settings. Do not commit their values.
-
-Core application variables:
-
-```text
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-APP_ENCRYPTION_KEY
-NEXT_PUBLIC_APP_URL
-NEXT_PUBLIC_ROOT_DOMAIN
-```
-
-For production, `NEXT_PUBLIC_APP_URL` must be the production Vercel or custom-domain URL, not `http://localhost:3000`.
-
-Integration variables required when those features are enabled:
-
-```text
-STRIPE_SECRET_KEY
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-STRIPE_WEBHOOK_SECRET
-RESEND_API_KEY
-EMAIL_FROM
-```
-
-## Next-session checklist
-
-- Confirm which GitHub account now has repository write access.
-- Check `git status` before making any additional changes.
-- Push local `main` to `origin`.
-- Confirm `app/page.tsx` and `app/layout.tsx` appear on GitHub.
-- Retry the Vercel deployment.
-- Add the required production environment variables in Vercel.
-- Test the deployed landing page, login, tenant administration, podcast, courses, resources, and events.
-- Review the outstanding NPM security advisories separately.
+Repository configuration does not prove GitHub access, Vercel linkage, external provider readiness, DNS propagation, certificate validity, or production success. Operators must verify those systems directly during the approved release window.

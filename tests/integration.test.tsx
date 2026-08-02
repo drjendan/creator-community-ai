@@ -17,11 +17,39 @@ describe("application integration surfaces", () => {
   it("shares tenant branding and dashboard navigation", () => {
     render(<DashboardShell tenantName="Current Organization"><EmptyState title="No recent activity." description="Activity will appear here." /></DashboardShell>);
     expect(screen.getAllByText("Current Organization").length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "Audience" }));
+    fireEvent.click(screen.getByRole("button", { name: "Community" }));
     expect(screen.getByRole("navigation", { name: /Current Organization dashboard navigation/i })).toHaveTextContent("Memberships");
     fireEvent.click(screen.getByRole("button", { name: "Open user menu" }));
     expect(screen.getByRole("menuitem", { name: "Sign out" })).toBeInTheDocument();
     expect(screen.getAllByText("No recent activity.").length).toBeGreaterThan(0);
+  });
+  it("expands tenant Content and exposes every live content module", () => {
+    window.localStorage.removeItem("upnexx:navigation:tenant");
+    const view = render(<DashboardShell tenantName="Current Organization"><EmptyState title="No recent activity." description="Activity will appear here." /></DashboardShell>);
+    const scoped = within(view.container);
+    const contentButton = scoped.getByRole("button", { name: "Content" });
+    expect(contentButton).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(contentButton);
+    expect(contentButton).toHaveAttribute("aria-expanded", "true");
+    const navigation = scoped.getByRole("navigation", { name: /Current Organization dashboard navigation/i });
+    expect(navigation).toHaveTextContent("Podcasts");
+    expect(navigation).toHaveTextContent("Courses");
+    expect(navigation).toHaveTextContent("Content Library");
+    expect(navigation).toHaveTextContent("Events");
+    expect(navigation).toHaveTextContent("Content Categories");
+    expect(navigation).toHaveTextContent("Content Settings");
+  });
+  it("shows a clear plan message for a locked content module", () => {
+    window.localStorage.removeItem("upnexx:navigation:tenant");
+    const view = render(<DashboardShell tenantName="Current Organization" nav={[
+      { label: "Getting Started", href: "/dashboard" },
+      { label: "Podcasts", href: "/dashboard/podcast", group: "Content", featureKey: "podcasts", locked: true, lockedReason: "Podcasts are disabled for this plan." }
+    ]}><EmptyState title="No recent activity." description="Activity will appear here." /></DashboardShell>);
+    const scoped = within(view.container);
+    fireEvent.click(scoped.getByRole("button", { name: "Content" }));
+    fireEvent.click(scoped.getByRole("link", { name: /^Podcasts/ }));
+    expect(scoped.getByRole("status")).toHaveTextContent("Podcasts are disabled for this plan.");
+    expect(scoped.getByRole("status")).toHaveTextContent("Contact your UpNexx administrator");
   });
   it("provides a restartable guided dashboard tour", () => {
     window.localStorage.setItem("podcastos:onboarding:tenant:local:v2", "completed");

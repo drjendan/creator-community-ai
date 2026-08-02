@@ -10,7 +10,7 @@ export default async function PlatformTenantBrandingPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!(await getPlatformAdministrator())) notFound();
+  if (!(await getPlatformAdministrator("platform.tenants.manage"))) notFound();
   const { id } = await params;
   const { data: tenant } = await createAdminClient()
     .from("tenants")

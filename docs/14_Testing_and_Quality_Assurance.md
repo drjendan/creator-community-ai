@@ -39,7 +39,7 @@ Current repository tests cover business/access logic, form validation, reusable 
 | Component | Navigation, cards, forms, branding, content manager | All CRUD/error/permission states, dialogs, AI settings |
 | Integration | Key application surfaces | Route handlers with realistic repositories and auth roles |
 | E2E | Public/member routes; auth workflows conditional on credentials | Stable authenticated tenant/admin/member fixtures |
-| Database/RLS | Static migration assertions | Live multi-role staging matrix |
+| Database/RLS | Static migration assertions and production evidence harness | Execute and approve the live multi-role production matrix |
 
 ## Required domain suites
 
@@ -120,6 +120,8 @@ Automated tools do not replace manual assistive-technology review.
 - [ ] Mobile/keyboard/accessibility
 - [ ] Error/loading/empty states
 - [ ] Production build and smoke tests
+- [ ] Clean production preflight passes and its commit/artifact hashes match the frozen release candidate
+- [ ] Matching production isolation and quality runs are finalized before Platform Owner approval
 
 ## Test reporting
 
@@ -128,7 +130,7 @@ Record commit, environment, migration version, commands, totals, skips, failures
 ## Known gaps
 
 - Authenticated E2E tests skip when environment credentials are absent.
-- No live database RLS harness, Stripe tests, member AI quality suite, automated accessibility scanner, stable visual snapshots, load tests, or CI evidence.
+- The live database RLS evidence harness is implemented, but a completed production run remains required. Stripe live verification, member AI quality automation, an accessibility scanner, stable visual snapshots, load tests, and CI evidence remain outstanding.
 - Coverage thresholds apply only to selected utility files.
 
 ## Open questions

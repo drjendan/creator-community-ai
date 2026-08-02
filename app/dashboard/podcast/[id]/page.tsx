@@ -3,13 +3,15 @@ import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Button, Card, CardTitle } from "@/components/ui";
 import { VideoPlayer } from "@/components/content/VideoPlayer";
-import { getActiveTenantManager } from "@/lib/tenant-context";
+import { getActiveTenantManager, getActiveTenantWithPermission } from "@/lib/tenant-context";
 import { getTenantEntitlements } from "@/lib/feature-entitlements";
+import { EpisodeContentManager } from "@/components/dashboard/EpisodeContentManager";
 
 export default async function EpisodeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const context = await getActiveTenantManager();
-  if (!context) notFound();
+  const permitted = await getActiveTenantWithPermission("tenant.podcasts.manage");
+  if (!context || !permitted || context.tenant.id !== permitted.tenant.id) notFound();
   const entitlements = await getTenantEntitlements(context.tenant.id, context.supabase);
   if (entitlements.get("podcasts") !== true) notFound();
   const { data: episode } = await context.supabase
@@ -27,6 +29,7 @@ export default async function EpisodeDetailPage({ params }: { params: Promise<{ 
         {episode.audio_url ? <Card><CardTitle>Audio</CardTitle><audio controls className="mt-5 w-full" src={episode.audio_url}>Your browser does not support audio playback.</audio></Card> : <EmptyState title="No audio uploaded." description="Add an audio file from the podcast editor." icon={Headphones} />}
         {episode.video_url ? <Card><CardTitle>Video</CardTitle><div className="mt-5 overflow-hidden rounded-xl bg-black"><VideoPlayer url={episode.video_url} title={episode.title} /></div></Card> : <EmptyState title="No video added." description="Add a video URL from the podcast editor." icon={Video} />}
       </div>
+      <EpisodeContentManager episodeId={id} />
       {entitlements.get("creator_ai_studio") === true && <EmptyState title="No generated episode assets." description="Create a source-based summary or supporting asset in AI Studio." actionLabel="Open AI Studio" actionHref="/dashboard/ai-studio" icon={FileText} />}
     </div>
   );

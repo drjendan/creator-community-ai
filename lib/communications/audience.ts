@@ -194,10 +194,20 @@ export async function resolveEligibleRecipients(input: {
     userIds = userIds.filter((id) => eligible.has(id));
   }
 
-  const recipients = (await Promise.all(userIds.map(async (userId) => {
+  const memberRecipients = (await Promise.all(userIds.map(async (userId) => {
     const { data } = await admin.auth.admin.getUserById(userId);
     return data.user?.email ? { userId, email: data.user.email.toLowerCase() } : null;
   }))).filter((item): item is { userId: string; email: string } => Boolean(item));
+  let contactQuery = admin.from("communication_contacts").select("id,email").eq("tenant_id", input.tenantId).eq("status", "active");
+  if (input.audienceType === "individual_members") contactQuery = contactQuery.in("id", input.audienceIds);
+  const { data: contacts } = input.marketing && ["all_active_members", "individual_members"].includes(input.audienceType)
+    ? await contactQuery
+    : { data: [] };
+  const seen = new Set(memberRecipients.map((recipient) => recipient.email));
+  const contactRecipients = (contacts ?? [])
+    .map((contact: { email: string }) => ({ userId: null, email: contact.email.toLowerCase() }))
+    .filter((contact) => !seen.has(contact.email));
+  const recipients: Array<{ userId: string | null; email: string }> = [...memberRecipients, ...contactRecipients];
 
   if (!input.marketing || !recipients.length) return recipients;
   const emails = recipients.map((recipient) => recipient.email);
@@ -207,5 +217,5 @@ export async function resolveEligibleRecipients(input: {
   ]);
   const suppressed = new Set((suppressions ?? []).map((item: { email: string }) => item.email.toLowerCase()));
   const optedOut = new Set((preferences ?? []).filter((item: { email_enabled: boolean }) => !item.email_enabled).map((item: { user_id: string }) => item.user_id));
-  return recipients.filter((recipient) => !suppressed.has(recipient.email) && !optedOut.has(recipient.userId));
+  return recipients.filter((recipient) => !suppressed.has(recipient.email) && (!recipient.userId || !optedOut.has(recipient.userId)));
 }

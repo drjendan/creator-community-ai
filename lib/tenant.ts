@@ -20,6 +20,7 @@ export function resolveTenantIdentifier(input: {
   if (!input.host) return null;
   const host = normalizeHost(input.host);
   const root = normalizeHost(input.rootDomain ?? "upnexx.net");
+  if (host === root) return null;
   if (host.endsWith(`.${root}`)) {
     const slug = host.slice(0, -(root.length + 1)).split(".").at(-1);
     return slug && !reservedTenantSlugs.has(slug)

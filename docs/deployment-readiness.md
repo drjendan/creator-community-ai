@@ -1,27 +1,30 @@
-# Deployment readiness
+# Production deployment readiness
 
-The application is Vercel-compatible but has not been deployed automatically.
+The application implementation is complete through Milestone 24 and migration 0040. No production deployment is recorded by the repository, and this release does not use staging.
 
-## Ready
+## Implemented release controls
 
-- One Next.js/TypeScript/Tailwind codebase
-- Public, tenant, platform-admin, tenant-admin, and member routes
-- Responsive navigation and professional brand system
-- Supabase browser/server clients and auth middleware foundation
-- Environment placeholders only
-- Unit, integration, and browser regression suites
+- Production health and configuration diagnostics
+- Evidence-backed operational, recovery, isolation, accessibility, critical-path, DNS, SSL, and rollback gates
+- Durable notification delivery and protected member media
+- Production billing and signed webhook boundaries
+- Custom-domain ownership, activation, canonical routing, and rollback
+- Deterministic source artifact digest and migration continuity preflight
+- Immutable release candidate, Platform Owner approval, and post-deployment evidence history
 
-## Required before production
+## Required before the production push
 
-- Apply and test migrations in Supabase staging
-- Generate exact database types
-- Finish sign-up, invitation, logout, reset, and tenant-selection actions
-- Integrate Stripe billing and verified webhooks
-- Add email delivery and background processing
-- Enforce paid entitlements in RLS
-- Configure custom domains and certificate verification
-- Add monitoring, backups, retention, privacy, and incident procedures
-- Perform accessibility, security, load, and tenant-isolation testing
-- Replace mock data with repository/service queries
+1. Apply migrations through 0040 and run `supabase/verify_upnexx_schema.sql`.
+2. Configure production-only environment values, provider webhooks, DNS, monitoring, backups, incident ownership, and authentication redirects.
+3. Run production RLS and quality verification with real credentials and evidence.
+4. Resolve or explicitly waive every Operational Readiness gate.
+5. Commit the combined release, obtain a clean `npm run release:preflight` result, and freeze its exact commit and artifact digest.
+6. Obtain Platform Owner approval for that immutable candidate.
 
-Do not deploy with mock authorization assumed to be production access control.
+## Required after deployment
+
+- Verify `/api/health`, authentication redirects, role boundaries, tenant isolation, critical tenant/member/platform workflows, billing and email delivery, protected media, and custom-domain behavior.
+- Exercise or confirm the approved application and domain rollback paths.
+- Record the actual deployment identifier and smoke-test evidence only after production succeeds.
+
+Configuration, a successful build, or migration installation alone is not production evidence. Never use the dirty-worktree preflight override for approval.

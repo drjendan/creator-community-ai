@@ -1,7 +1,6 @@
 import "server-only";
 
-import { getActiveEmailProvider } from "@/lib/communications/configuration";
-import { ResendEmailProviderAdapter } from "@/lib/communications/provider";
+import { deliverReliableTransactionalEmail } from "@/lib/communications/reliable-delivery";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type InvitationMessage = {
@@ -11,6 +10,8 @@ type InvitationMessage = {
   firstName?: string;
   personalMessage?: string;
   acceptUrl: string;
+  reminder?: boolean;
+  invitationId?: string;
 };
 
 export async function findAuthUserByEmail(email: string) {
@@ -36,71 +37,26 @@ function invitationContent(values: InvitationMessage) {
     ? `<p>${values.personalMessage.replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</p>`
     : "";
   return {
-    subject: `You are invited to join ${values.tenantName} on UpNexx`,
-    html: `<p>${greeting}</p><p>You have been invited to join <strong>${values.tenantName}</strong>.</p>${personalMessage}<p><a href="${values.acceptUrl}">Accept invitation</a></p><p>This secure link expires in seven days and can be used only once.</p>`,
-    text: `${greeting}\n\nYou have been invited to join ${values.tenantName}.\n\n${values.personalMessage || ""}\n\nAccept invitation: ${values.acceptUrl}\n\nThis secure link expires in seven days and can be used only once.`
+    subject: values.reminder
+      ? `Reminder: accept your invitation to ${values.tenantName}`
+      : `You are invited to join ${values.tenantName} on UpNexx`,
+    html: `<p>${greeting}</p><p>${values.reminder ? "This is a reminder that you have" : "You have"} been invited to join <strong>${values.tenantName}</strong>.</p>${personalMessage}<p><a href="${values.acceptUrl}">Accept invitation</a></p><p>This secure link can be used only once.</p>`,
+    text: `${greeting}\n\n${values.reminder ? "This is a reminder that you have" : "You have"} been invited to join ${values.tenantName}.\n\n${values.personalMessage || ""}\n\nAccept invitation: ${values.acceptUrl}\n\nThis secure link can be used only once.`
   };
 }
 
 export async function deliverTeamInvitation(values: InvitationMessage) {
-  const admin = createAdminClient();
   const existingUser = await findAuthUserByEmail(values.email);
-  if (!existingUser) {
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(
-      values.email,
-      {
-        redirectTo: values.acceptUrl,
-        data: { tenant_id: values.tenantId }
-      }
-    );
-    if (error || !data.user) {
-      return {
-        accepted: false,
-        error: error?.message || "The authentication service could not deliver the invitation."
-      };
-    }
-    return {
-      accepted: true,
-      delivery: "supabase",
-      invitedUserId: data.user.id
-    };
-  }
-
   const content = invitationContent(values);
-  const tenantProvider = await getActiveEmailProvider(admin, values.tenantId);
-  if (tenantProvider) {
-    const result = await tenantProvider.adapter.sendTransactionalEmail({
-      fromName: tenantProvider.config.from_name,
-      fromEmail: tenantProvider.config.from_email,
-      replyTo: tenantProvider.config.reply_to_email,
-      to: [values.email],
-      ...content
-    });
-    return {
-      ...result,
-      delivery: "tenant_resend",
-      invitedUserId: existingUser.id
-    };
-  }
-
-  const apiKey = process.env.PLATFORM_RESEND_API_KEY;
-  const fromEmail = process.env.PLATFORM_INVITATION_FROM_EMAIL;
-  if (!apiKey || !fromEmail) {
-    return {
-      accepted: false,
-      error:
-        "No invitation email provider is configured. Connect the tenant Resend provider or configure PLATFORM_RESEND_API_KEY and PLATFORM_INVITATION_FROM_EMAIL."
-    };
-  }
-  const result = await new ResendEmailProviderAdapter(apiKey).sendTransactionalEmail({
-    fromName: process.env.PLATFORM_INVITATION_FROM_NAME || "UpNexx",
-    fromEmail,
-    to: [values.email],
-    ...content
+  const result = await deliverReliableTransactionalEmail({
+    category: "tenant_invitation", sourceType: "tenant_invitation", sourceId: values.invitationId,
+    idempotencyKey: values.invitationId && !values.reminder ? `tenant-invitation:${values.invitationId}:initial` : undefined,
+    providerScope: "tenant_fallback_platform", tenantId: values.tenantId,
+    message: { fromName: process.env.PLATFORM_INVITATION_FROM_NAME || "UpNexx", fromEmail: process.env.PLATFORM_INVITATION_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || "notifications@upnexx.net", to: [values.email], ...content }
   });
   return {
     ...result,
-    delivery: "platform_resend",
-    invitedUserId: existingUser.id
+    delivery: "durable_transactional_queue",
+    invitedUserId: existingUser?.id
   };
 }

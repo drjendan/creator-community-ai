@@ -26,13 +26,13 @@
 ```mermaid
 flowchart TB
   U[Browser / Member / Administrator]
-  CF[Cloudflare DNS and edge<br/>Planned]
+  CF[Production DNS and edge<br/>Operator configured]
   NX[Next.js App Router on Vercel<br/>Application implemented; deployment planned]
   SB[Supabase Auth + PostgreSQL + RLS<br/>Implemented]
   ST[Supabase Storage<br/>Partial]
   AI[AI providers<br/>OpenAI / Anthropic / Gemini<br/>Creator generation partial]
-  STR[Stripe<br/>Planned]
-  EM[Resend<br/>Planned]
+  STR[Stripe<br/>Implemented boundary; live validation pending]
+  EM[Resend<br/>Implemented boundary; live validation pending]
   OBS[Sentry + PostHog<br/>Recommended]
   U --> CF --> NX
   NX --> SB
@@ -50,18 +50,18 @@ flowchart TB
 | Frontend | Next.js 15 App Router, React 19, TypeScript, Tailwind, local UI components | Implemented |
 | Server | Server Components, Server Actions, route handlers, middleware | Implemented |
 | Authentication | Supabase password authentication and cookie refresh | Implemented |
-| Authorization | Platform roles, tenant membership/roles, server checks, RLS helpers | Partial; staging matrix required |
+| Authorization | Platform roles, tenant membership/roles, server checks, RLS helpers, production isolation evidence | Implemented; live production matrix pending |
 | Database | PostgreSQL migrations with tenant-scoped relational model | Implemented in repository; live migration state must be verified |
 | Storage | `tenant-assets` bucket and tenant-folder policies | Partial |
 | AI | Direct provider adapters inside generation route; encrypted tenant keys | Partial |
-| Billing | Plan/subscription schema and UI concepts | Planned execution; no Stripe dependency/routes/webhooks |
-| Email | Environment placeholders only | Planned |
+| Billing | Separate platform and audience checkout, portal, Connect, signed idempotent webhooks, and reconciliation | Implemented; live production configuration pending |
+| Email | Resend provider boundaries, signed webhooks, encrypted durable delivery, retries, and reconciliation | Implemented; live production configuration pending |
 | Analytics | Dashboard mock/summary views and usage schema | Partial; PostHog absent |
 | Monitoring | Framework logs only | Recommended; Sentry absent |
 | Hosting | Vercel-compatible Next.js configuration | Planned/Needs Validation |
-| DNS | Domain schema and resolution logic | Partial; operational provisioning absent |
+| DNS | Ownership challenges, live route checks, verified resolution, SSL evidence, canonical activation, and rollback | Implemented; external production proof pending |
 
-The Vercel AI SDK, Stripe SDK, Resend, Sentry, and PostHog are not installed in `package.json`.
+Sentry and PostHog are not installed. External monitoring and product-analytics selection remain operator/product decisions.
 
 ## Tenant-aware request flow
 
@@ -115,7 +115,7 @@ flowchart LR
   V -.-> RAG[Member RAG + citations<br/>Planned]
 ```
 
-Creator AI generation supports source text and multiple output types. RAG tables and vector extension exist in migrations, but ingestion, authorized retrieval, citations, and member-assistant delivery remain planned.
+Creator AI generation supports readable tenant-scoped sources, trusted server resolution, multiple output types, atomic credit reservation, and versioned Content Library drafts. RAG tables and vector extension exist in migrations, but ingestion, authorized retrieval, citations, and member-assistant delivery remain planned.
 
 ## Subscription billing flow
 
@@ -123,12 +123,12 @@ Creator AI generation supports source text and multiple output types. RAG tables
 flowchart LR
   T[Tenant] --> P[Select UpNexx platform plan]
   P --> S[(tenant_subscriptions<br/>Schema implemented)]
-  S -.-> SC[Stripe Checkout<br/>Planned]
-  SC -.-> WH[Signed webhook<br/>Planned]
-  WH -.-> S
+  S --> SC[Stripe Checkout + portal<br/>Implemented]
+  SC --> WH[Signed idempotent webhook]
+  WH --> S
   M[Audience member] --> MP[Tenant membership plan]
   MP --> MS[(member_subscriptions<br/>Schema implemented)]
-  MS -.-> MC[Audience checkout / Connect decision<br/>Planned]
+  MS --> MC[Connected-account checkout<br/>Implemented]
 ```
 
 Platform subscriptions and audience memberships must remain separate in routes, tables, reporting, and customer language.
@@ -140,7 +140,7 @@ Platform subscriptions and audience memberships must remain separate in routes, 
 - Tenant AI credentials are encrypted with AES-256-GCM before database storage.
 - Provider calls occur from a Node route; keys are not returned to browsers.
 - Storage paths begin with tenant identifiers and use storage policies.
-- Stripe, Resend, Cloudflare automation, Sentry, and PostHog have no production integration evidence.
+- Stripe and Resend application boundaries are implemented, but live credentials, provider configuration, webhook delivery, and production evidence remain operator work. DNS/provider automation, Sentry, and PostHog are not claimed.
 
 ## Scalability, reliability, and error handling
 
@@ -165,11 +165,11 @@ Platform subscriptions and audience memberships must remain separate in routes, 
 
 ## Known architectural gaps
 
-- No production billing, webhook, email, monitoring, or product-analytics integration.
+- Production billing and signed webhook boundaries are implemented but require live configuration and controlled production verification. Production email, monitoring, and product-analytics integrations remain incomplete.
 - No background jobs or durable event queue.
-- No implemented member RAG, citation UI, recommendation service, or administrator insight generation.
+- Advanced vector ingestion and semantic ranking remain incomplete; authorized member citations, deterministic recommendations, and qualified administrator insight generation are implemented.
 - Database-generated TypeScript types may not reflect every migration.
-- Custom-domain verification, certificates, and lifecycle automation are absent.
+- Custom-domain ownership and DNS checks, verified-host routing, canonical redirects, certificate evidence, activation, and rollback controls are implemented; live provider issuance and production evidence remain operator responsibilities.
 - Live RLS/tenant-isolation testing is not automated against staging.
 - Recovery objectives and operational ownership are undefined.
 

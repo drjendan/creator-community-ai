@@ -2,14 +2,16 @@
 import { Button, Card, Container, Field, Input } from "@/components/ui";
 import { hasSupabaseEnv } from "@/lib/env";
 import { signIn } from "./actions";
+import Link from "next/link";
+import { AuthLegalLinks } from "@/components/legal/AuthLegalLinks";
 
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; next?: string }>;
 }) {
   const live = hasSupabaseEnv();
-  const { error, next = "/dashboard" } = await searchParams;
+  const { error, message, next = "/dashboard" } = await searchParams;
 
   return (
     <main className="grid min-h-screen place-items-center bg-brand-50 px-4 py-12">
@@ -30,6 +32,7 @@ export default async function LoginPage({
               {error}
             </div>
           )}
+          {message && <div role="status" className="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">{message}</div>}
 
           {live ? (
             <form action={signIn} className="mt-7 space-y-4">
@@ -65,6 +68,8 @@ export default async function LoginPage({
           <a href="/forgot-password" className="mt-5 block text-center text-sm font-semibold text-accent-700">
             Forgot your password?
           </a>
+          <p className="mt-3 text-center text-sm text-brand-600">Need an account? <Link href="/signup" className="font-bold text-accent-700">Create one</Link></p>
+          <AuthLegalLinks />
         </Card>
       </Container>
     </main>

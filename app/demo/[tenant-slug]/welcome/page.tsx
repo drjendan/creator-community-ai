@@ -11,6 +11,7 @@ import {
   getPublishedResources
 } from "@/lib/content/member-library";
 import { getPublishedEpisodes } from "@/lib/content/member-episodes";
+import { MemberRecommendations } from "@/components/tenant/MemberRecommendations";
 
 export default async function WelcomePage({
   params
@@ -102,6 +103,9 @@ export default async function WelcomePage({
     ...(enabled.has("communication_direct_messages")
       ? [["View messages", `/demo/${slug}/messages`]]
       : []),
+    ...(enabled.has("ai_coach")
+      ? [["Ask the AI Coach", `/demo/${slug}/ai-coach`]]
+      : []),
     [
       "Communication preferences",
       `/demo/${slug}/settings/communications`
@@ -134,6 +138,8 @@ export default async function WelcomePage({
               "Your member home brings together the content and updates available to you."}
           </p>
         </section>
+
+        <MemberRecommendations tenantSlug={slug} />
 
         <div className="grid gap-5 lg:grid-cols-3">
           {enabled.has("memberships") && (

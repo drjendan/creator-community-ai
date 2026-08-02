@@ -6,10 +6,12 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { CommunicationRecords } from "@/components/communications/CommunicationRecords";
 import { EmailProviderSettings } from "@/components/communications/EmailProviderSettings";
 import { AudienceSegments } from "@/components/communications/AudienceSegments";
+import { CommunicationContacts } from "@/components/communications/CommunicationContacts";
 import { getActiveTenantCommunicator } from "@/lib/tenant-context";
 import { getTenantEntitlements } from "@/lib/feature-entitlements";
 
 const entitlements: Record<string, string> = {
+  contacts: "communication_hub",
   announcements: "communication_announcements",
   messages: "communication_direct_messages",
   campaigns: "communication_email_campaigns",
@@ -48,11 +50,18 @@ export default async function CommunicationsPage({
     (entitlements[section] &&
       enabled.get(entitlements[section]) !== true)
   ) {
-    notFound();
+    return (
+      <EmptyState
+        title="Communication feature not enabled"
+        description="This module is not included in the tenant's current plan. Ask a platform administrator to update the Communication Hub entitlements."
+        icon={Mail}
+      />
+    );
   }
 
   if (section === "settings") return <EmailProviderSettings />;
   if (section === "segments") return <AudienceSegments />;
+  if (section === "contacts") return <CommunicationContacts />;
   if (
     ["announcements", "messages", "campaigns", "templates"].includes(section)
   ) {

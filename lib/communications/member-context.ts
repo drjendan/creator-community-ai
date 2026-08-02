@@ -15,7 +15,7 @@ export async function getTenantMemberContext(slug: string) {
   const [{ data: profile }, { data: branding }, { data: subscription }] = await Promise.all([
     supabase.from("profiles").select("full_name,avatar_url").eq("id", user.id).maybeSingle(),
     supabase.from("tenant_branding").select("*").eq("tenant_id", tenant.id).maybeSingle(),
-    supabase.from("member_subscriptions").select("status,starts_at,renewal_at,plan_id,tenant_membership_plans(name,benefits)").eq("tenant_id", tenant.id).eq("user_id", user.id).maybeSingle()
+    supabase.from("member_subscriptions").select("status,starts_at,renewal_at,plan_id,stripe_customer_id,tenant_membership_plans(name,benefits)").eq("tenant_id", tenant.id).eq("user_id", user.id).maybeSingle()
   ]);
   return { supabase, user, tenant, membership, profile, branding, subscription };
 }

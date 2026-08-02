@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -27,6 +29,9 @@ export async function signIn(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent("Enter a valid email address and password.")}&next=${encodeURIComponent(destination)}`);
   }
 
+  const limit = await enforceRateLimit({ headers: await headers(), scope: "auth.sign_in", identifier: parsed.data.email.toLowerCase(), limit: 10, windowSeconds: 900 });
+  if (!limit.allowed) redirect(`/login?error=${encodeURIComponent(limit.unavailable ? "Sign-in protection is temporarily unavailable." : "Too many sign-in attempts. Try again later.")}&next=${encodeURIComponent(destination)}`);
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
@@ -39,4 +44,3 @@ export async function signIn(formData: FormData) {
 
   redirect(destination);
 }
-
