@@ -9,7 +9,7 @@ export const terminology = {
   upnexxTenants: "UpNexx Tenants",
   platformTeam: "Platform Team",
   communicationHub: "Communication Hub",
-  aiStudio: "AI Studio",
+  aiStudio: "Create From My Content",
   contentLibrary: "Content Library",
   billingAndUsage: "Billing & Usage",
   plansAndEntitlements: "Plans & Entitlements"

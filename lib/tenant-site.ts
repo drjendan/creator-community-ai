@@ -14,16 +14,16 @@ export async function getTenantSiteBySlug(slug: string): Promise<Tenant | null> 
   if (!tenant) return null;
   const [{ data: branding }, { data: entitlements }] = await Promise.all([admin
     .from("tenant_branding")
-    .select("primary_color,secondary_color,accent_color,background_color,text_color,button_color,link_color,footer_text,logo_url,hero_image_url,email_logo_url,favicon_url,email_footer_text,welcome_headline,welcome_message,member_dashboard_greeting,support_email")
+    .select("community_name,display_name,tagline,full_description,podcast_name,primary_color,secondary_color,accent_color,background_color,text_color,button_color,link_color,footer_text,logo_url,hero_image_url,cover_image_url,email_logo_url,favicon_url,email_footer_text,welcome_headline,welcome_message,member_dashboard_greeting,support_email")
     .eq("tenant_id", tenant.id)
     .maybeSingle(), admin.from("tenant_feature_entitlements").select("feature_key,enabled").eq("tenant_id", tenant.id).eq("enabled", true)]);
   const enabledFeatures = (entitlements ?? []).map((item: { feature_key: string }) => item.feature_key);
   return {
     id: tenant.id,
-    name: tenant.name,
+    name: branding?.display_name || branding?.community_name || tenant.name,
     slug: tenant.slug,
-    tagline: branding?.footer_text || "Learning and community, in one place.",
-    description: "",
+    tagline: branding?.tagline || branding?.footer_text || "Learning and community, in one place.",
+    description: branding?.full_description || "",
     primaryColor: branding?.primary_color || "#102a56",
     secondaryColor: branding?.secondary_color || "#475569",
     accentColor: branding?.accent_color || "#7c3aed",
@@ -34,7 +34,8 @@ export async function getTenantSiteBySlug(slug: string): Promise<Tenant | null> 
     communicationEnabled: enabledFeatures.includes("communication_hub"),
     enabledFeatures,
     logoUrl: branding?.logo_url,
-    heroImageUrl: branding?.hero_image_url,
+    heroImageUrl: branding?.cover_image_url || branding?.hero_image_url,
+    podcastName: branding?.podcast_name,
     emailLogoUrl: branding?.email_logo_url,
     faviconUrl: branding?.favicon_url,
     emailFooterText: branding?.email_footer_text,

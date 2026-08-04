@@ -1,44 +1,20 @@
-import { ArrowRight, BookOpen, CalendarDays, FileText, Headphones } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, CalendarDays, Download, LockKeyhole } from "lucide-react";
 import { notFound } from "next/navigation";
-import { EmptyState } from "@/components/feedback/EmptyState";
-import { Button, Container } from "@/components/ui";
-import { getPublishedCourses, getPublishedEvents, getPublishedResources } from "@/lib/content/member-library";
-import { getPublishedEpisodes } from "@/lib/content/member-episodes";
-import { getTenantSiteBySlug } from "@/lib/tenant-site";
+import { Container, Card } from "@/components/ui";
+import { PublicLeadCapture } from "@/components/tenant/PublicLeadCapture";
+import { getPublicCommunity } from "@/lib/public-community";
+import { headers } from "next/headers";
 
-export default async function TenantHomePage({ params }: { params: Promise<{ "tenant-slug": string }> }) {
-  const { "tenant-slug": slug } = await params;
-  const [tenant, episodes, courses, events, resources] = await Promise.all([
-    getTenantSiteBySlug(slug),
-    getPublishedEpisodes(slug),
-    getPublishedCourses(slug),
-    getPublishedEvents(slug),
-    getPublishedResources(slug)
-  ]);
-  if (!tenant) notFound();
-  const enabled = new Set(tenant.enabledFeatures ?? []);
-  const cards = [
-    ...(enabled.has("podcasts") ? [{ title: episodes.length ? `${episodes.length} published episode${episodes.length === 1 ? "" : "s"}` : "No episodes published yet.", description: "Published episodes from this organization appear here.", action: "Browse Episodes", href: `/demo/${slug}/episodes`, icon: Headphones }] : []),
-    ...(enabled.has("courses") ? [{ title: courses.length ? `${courses.length} published course${courses.length === 1 ? "" : "s"}` : "No courses published yet.", description: "Published learning experiences from this organization appear here.", action: "Browse Courses", href: `/demo/${slug}/courses`, icon: BookOpen }] : []),
-    ...(enabled.has("events") ? [{ title: events.length ? `${events.length} published event${events.length === 1 ? "" : "s"}` : "No upcoming events.", description: "Published events from this organization appear here.", action: "Browse Events", href: `/demo/${slug}/events`, icon: CalendarDays }] : []),
-    ...(enabled.has("resources") ? [{ title: resources.length ? `${resources.length} published resource${resources.length === 1 ? "" : "s"}` : "No resources published yet.", description: "Published resources from this organization appear here.", action: "Browse Resources", href: `/demo/${slug}/resources`, icon: FileText }] : [])
-  ];
-  return (
-    <main>
-      <section className="upnexx-hero bg-cover bg-center text-white" style={tenant.heroImageUrl ? { backgroundImage: `linear-gradient(#0009,#0009),url("${tenant.heroImageUrl}")` } : { backgroundColor: tenant.primaryColor }}>
-        <Container className="py-20">
-          <p className="text-xs font-bold uppercase tracking-[.16em] text-highlight-300">{tenant.name}</p>
-          <h1 className="mt-5 max-w-3xl font-display text-5xl font-extrabold leading-tight">{tenant.tagline}</h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-brand-100">Explore the content, learning, community, and events published by {tenant.name}.</p>
-          {tenant.communicationEnabled && <Button href={`/demo/${slug}/welcome`} className="mt-8">Open Member Dashboard <ArrowRight className="h-4 w-4" /></Button>}
-        </Container>
-      </section>
-      <section className="py-16">
-        <Container className="grid gap-5 md:grid-cols-2">
-          {cards.map((card) => <EmptyState key={card.href} title={card.title} description={card.description} actionLabel={card.action} actionHref={card.href} icon={card.icon} />)}
-          {!cards.length && <EmptyState title="No member features are enabled" description="This organization has not enabled any member-facing content." />}
-        </Container>
-      </section>
-    </main>
-  );
-}
+export default async function PublicCommunityPage({params}:{params:Promise<{"tenant-slug":string}>}){const {"tenant-slug":slug}=await params;const page=await getPublicCommunity(slug);if(!page)notFound();const {tenant,settings}=page;const published=!settings||settings.publication_status==="published";const visibility=settings?.visibility||"private_link";const unavailable=!published||["paused","invite_only"].includes(visibility);const requestHeaders=await headers();const base=requestHeaders.get("x-upnexx-tenant-slug")===slug?"":`/demo/${slug}`;
+ if(unavailable)return <main><section className="py-24"><Container className="max-w-2xl text-center"><LockKeyhole className="mx-auto h-12 w-12 text-accent-700"/><p className="mt-5 text-xs font-bold uppercase tracking-wide text-accent-700">{visibility==="paused"?"Temporarily paused":visibility==="invite_only"?"Invitation required":"Opening soon"}</p><h1 className="mt-3 font-display text-4xl font-extrabold text-brand-900">{tenant.name}</h1><p className="mt-4 text-brand-600">This community is not accepting public access right now. Existing members can still sign in.</p><Link href={`/login?next=${encodeURIComponent(`${base}/welcome`)}`} className="mt-7 inline-flex rounded-lg bg-brand-900 px-5 py-3 font-bold text-white">Sign In</Link></Container></section></main>;
+ const primary=settings?.primary_cta_url||`${base}/welcome`;const secondary=settings?.secondary_cta_url||`/login?next=${encodeURIComponent(`${base}/welcome`)}`;
+ return <main><section className="bg-cover bg-center text-white" style={tenant.heroImageUrl?{backgroundImage:`linear-gradient(#03071ecc,#03071ecc),url("${tenant.heroImageUrl}")`}:{backgroundColor:tenant.primaryColor}}><Container className="py-20 lg:py-28"><div className="max-w-3xl">{tenant.logoUrl&&<Image src={tenant.logoUrl} alt={`${tenant.name} logo`} width={240} height={96} className="mb-6 h-20 w-auto object-contain" unoptimized/>}<p className="text-xs font-bold uppercase tracking-[.16em] text-highlight-300">{tenant.name}</p>{page.tenant.podcastName&&<p className="mt-2 text-sm font-semibold text-brand-100">{page.tenant.podcastName}</p>}<h1 className="mt-5 font-display text-5xl font-extrabold leading-tight">{tenant.tagline}</h1><p className="mt-5 max-w-2xl text-lg leading-8 text-brand-100">{tenant.description||`Discover content, learning, events, and honest connection from ${tenant.name}.`}</p><div className="mt-8 flex flex-wrap gap-3"><Link href={primary} className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 font-bold text-brand-900">{settings?.primary_cta_label||"Join the Community"}<ArrowRight className="h-4 w-4"/></Link><Link href={secondary} className="rounded-lg border border-white/40 px-5 py-3 font-bold text-white">{settings?.secondary_cta_label||"Sign In"}</Link></div></div></Container></section>
+ {(settings?.about_purpose||settings?.intended_audience||settings?.member_expectations)&&<section className="py-16"><Container><p className="text-xs font-bold uppercase tracking-wide text-accent-700">About</p><h2 className="mt-2 font-display text-3xl font-extrabold text-brand-900">A place created for you</h2><div className="mt-8 grid gap-5 md:grid-cols-3">{settings.about_purpose&&<Card><h3 className="font-bold text-brand-900">Our purpose</h3><p className="mt-3 text-sm leading-6 text-brand-600">{settings.about_purpose}</p></Card>}{settings.intended_audience&&<Card><h3 className="font-bold text-brand-900">Who it’s for</h3><p className="mt-3 text-sm leading-6 text-brand-600">{settings.intended_audience}</p></Card>}{settings.member_expectations&&<Card><h3 className="font-bold text-brand-900">What to expect</h3><p className="mt-3 text-sm leading-6 text-brand-600">{settings.member_expectations}</p></Card>}</div></Container></section>}
+ {(page.episodes.length||page.courses.length)&&<section className="bg-brand-50 py-16"><Container><p className="text-xs font-bold uppercase tracking-wide text-accent-700">Featured Content</p><h2 className="mt-2 font-display text-3xl font-extrabold text-brand-900">Explore what’s waiting for you</h2><div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{[...page.episodes.map(item=>({...item,type:"Podcast episode",href:`${base}/episodes/${item.id}`})),...page.courses.map(item=>({...item,type:"Course",href:`${base}/courses/${item.id}`}))].slice(0,6).map(item=><Card key={`${item.type}-${item.id}`}><p className="text-xs font-bold uppercase tracking-wide text-accent-700">{item.type}</p><h3 className="mt-3 font-display text-xl font-bold text-brand-900">{item.title}</h3><p className="mt-2 line-clamp-3 text-sm text-brand-600">{item.description}</p><Link href={item.href} className="mt-5 inline-flex font-bold text-accent-700">View preview</Link></Card>)}</div></Container></section>}
+ {page.resources.length>0&&<section className="py-16"><Container><p className="text-xs font-bold uppercase tracking-wide text-accent-700">Free Resources</p><h2 className="mt-2 font-display text-3xl font-extrabold text-brand-900">Start with something useful</h2><div className="mt-8 grid gap-5 lg:grid-cols-2">{page.resources.map(resource=><Card key={resource.id}><Download className="h-6 w-6 text-accent-700"/><h3 className="mt-3 font-display text-xl font-bold text-brand-900">{resource.title}</h3><p className="mt-2 text-sm text-brand-600">{resource.description}</p><PublicLeadCapture slug={slug} resource={resource}/></Card>)}</div></Container></section>}
+ {page.plans.length>0&&<section className="bg-brand-50 py-16"><Container><p className="text-xs font-bold uppercase tracking-wide text-accent-700">Membership Options</p><h2 className="mt-2 font-display text-3xl font-extrabold text-brand-900">Choose how you want to participate</h2><div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{page.plans.map(plan=><Card key={plan.id}><h3 className="font-display text-xl font-bold text-brand-900">{plan.name}</h3><p className="mt-2 text-sm text-brand-600">{plan.description}</p><p className="mt-5 text-2xl font-extrabold">{plan.plan_type==="free"?"Free":`$${Number(plan.price_monthly).toFixed(2)}/month`}</p>{plan.external_purchase_url?<Link href={plan.external_purchase_url} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex rounded-lg bg-brand-900 px-4 py-2 font-bold text-white">Visit purchase page</Link>:<p className="mt-5 rounded-lg bg-brand-100 px-3 py-2 text-sm font-bold text-brand-700">{plan.plan_type==="free"?"Request access":"Payment Setup Required · Request Information"}</p>}</Card>)}</div></Container></section>}
+ {page.events.length>0&&<section className="py-16"><Container><p className="text-xs font-bold uppercase tracking-wide text-accent-700">Events</p><h2 className="mt-2 font-display text-3xl font-extrabold text-brand-900">Upcoming gatherings</h2><div className="mt-8 grid gap-5 md:grid-cols-3">{page.events.map(event=><Card key={event.id}><CalendarDays className="h-6 w-6 text-accent-700"/><h3 className="mt-3 font-bold text-brand-900">{event.title}</h3><p className="mt-2 text-sm text-brand-600">{new Date(event.starts_at).toLocaleString()}</p></Card>)}</div></Container></section>}
+ {page.testimonials.length>0&&<section className="bg-brand-50 py-16"><Container><h2 className="font-display text-3xl font-extrabold text-brand-900">Community voices</h2><div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{page.testimonials.map(item=><Card key={item.id}><blockquote className="text-brand-700">“{item.quote}”</blockquote><p className="mt-4 font-bold text-brand-900">{item.name}</p>{item.relationship&&<p className="text-xs text-brand-500">{item.relationship}</p>}</Card>)}</div></Container></section>}
+ </main>}

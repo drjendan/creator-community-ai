@@ -15,6 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let showPlatformAdmin = false;
   let tourIdentity: string | undefined;
   let tenantName = "Your organization";
+  let tenantSlug: string | undefined;
   let userLabel = "Account";
   let nav = dashboardNavItems.filter((item) => !item.featureKey);
   let brand: { name?: string; logoUrl?: string | null; primaryColor?: string } | undefined;
@@ -35,6 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     }
     if (context) {
       tenantName = context.tenant.name;
+      tenantSlug = context.tenant.slug;
       trial = await getTenantTrialAccess(context.tenant.id);
       const { data: branding } = await context.supabase
         .from("tenant_branding")
@@ -60,5 +62,5 @@ export default async function DashboardLayout({ children }: { children: React.Re
     }
   }
 
-  return <DashboardShell tenantName={tenantName} userLabel={userLabel} showPlatformAdmin={showPlatformAdmin} tourIdentity={tourIdentity} nav={nav} brand={brand} trial={trial}>{children}</DashboardShell>;
+  return <DashboardShell tenantName={tenantName} tenantSlug={tenantSlug} userLabel={userLabel} showPlatformAdmin={showPlatformAdmin} tourIdentity={tourIdentity} nav={nav} brand={brand} trial={trial}>{children}</DashboardShell>;
 }

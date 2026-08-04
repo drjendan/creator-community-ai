@@ -43,10 +43,12 @@ function navigationPath(href: string) {
 
 export function TenantSwitcher({
   tenantName,
-  platformAdminHref
+  platformAdminHref,
+  memberHomeHref
 }: {
   tenantName: string;
   platformAdminHref?: string;
+  memberHomeHref?: string;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null); const buttonRef = useRef<HTMLButtonElement>(null);
@@ -78,6 +80,7 @@ export function TenantSwitcher({
             <Building2 className="h-4 w-4 text-accent-700" />
             <span className="truncate">{tenantName}</span>
           </div>
+          {memberHomeHref && <Link href={memberHomeHref} role="menuitem" className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-brand-800 transition hover:bg-brand-50"><UserRound className="h-4 w-4" />Member Home</Link>}
           {platformAdminHref && (
             <Link
               href={platformAdminHref}
@@ -157,13 +160,14 @@ export function UserMenu({ label = "Account" }: { label?: string }) {
   );
 }
 
-export function AppDashboardShell({ children, title, subtitle, nav, userLabel, platformAdminHref, tourIdentity, brand, trial }: {
+export function AppDashboardShell({ children, title, subtitle, nav, userLabel, platformAdminHref, memberHomeHref, tourIdentity, brand, trial }: {
   children: React.ReactNode;
   title: string;
   subtitle: string;
   nav: DashboardNavItem[];
   userLabel?: string;
   platformAdminHref?: string;
+  memberHomeHref?: string;
   tourIdentity?: string;
   brand?: { name?: string; tagline?: string; logoUrl?: string | null; primaryColor?: string };
   trial?: TrialExperienceState;
@@ -234,7 +238,7 @@ export function AppDashboardShell({ children, title, subtitle, nav, userLabel, p
       <div className="flex min-h-screen">
         <aside className="hidden w-64 shrink-0 border-r border-brand-200 bg-brand-900 p-5 text-white lg:block" style={brand?.primaryColor ? { backgroundColor: brand.primaryColor } : undefined} data-tour="main-navigation">
           <BrandMark inverse name={brand?.name} tagline={brand?.tagline} logoUrl={brand?.logoUrl} />
-          <div className="mt-8"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.14em] text-brand-300">{subtitle}</p><TenantSwitcher tenantName={title} platformAdminHref={platformAdminHref} /></div>
+          <div className="mt-8"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.14em] text-brand-300">{subtitle}</p><TenantSwitcher tenantName={title} platformAdminHref={platformAdminHref} memberHomeHref={memberHomeHref} /></div>
           <nav className="mt-7 space-y-1" aria-label={`${title} dashboard navigation`}>
             {groups.map((group) => {
               if (group.standalone) return group.items.map((item) => navLink(item));

@@ -21,8 +21,8 @@ if (dirtyPaths.length && allowDirty) warnings.push(`Dirty-worktree override used
 const migrationDir = resolve(root, "supabase", "migrations");
 const migrations = readdirSync(migrationDir).filter((name) => /^\d{4}_.+\.sql$/.test(name)).sort();
 const numbers = migrations.map((name) => Number(name.slice(0, 4)));
-for (let number = 1; number <= 43; number += 1) if (!numbers.includes(number)) blockers.push(`Migration ${String(number).padStart(4, "0")} is missing.`);
-if (numbers.at(-1) !== 43) blockers.push(`Expected migration 0043 to be latest; found ${String(numbers.at(-1) ?? 0).padStart(4, "0")}.`);
+for (let number = 1; number <= 44; number += 1) if (!numbers.includes(number)) blockers.push(`Migration ${String(number).padStart(4, "0")} is missing.`);
+if (numbers.at(-1) !== 44) blockers.push(`Expected migration 0044 to be latest; found ${String(numbers.at(-1) ?? 0).padStart(4, "0")}.`);
 if (new Set(numbers).size !== numbers.length) blockers.push("Duplicate migration numbers were found.");
 
 const tenantProvisioning = readFileSync(resolve(root, "app", "platform-admin", "tenants", "actions.ts"), "utf8");
@@ -41,7 +41,7 @@ const envExample = readFileSync(resolve(root, ".env.example"), "utf8");
 const requiredEnvironmentNames = [
   "APP_ENV", "NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_ROOT_DOMAIN", "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "APP_ENCRYPTION_KEY",
-  "STRIPE_BILLING_ENABLED", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CONNECT_WEBHOOK_SECRET",
+  "STRIPE_BILLING_ENABLED", "STRIPE_PLATFORM_BILLING_ENABLED", "STRIPE_CONNECT_ENABLED", "LIVE_CHECKOUT_ENABLED", "TENANT_PAID_MEMBERSHIPS_ENABLED", "TENANT_PRODUCT_PAYMENTS_ENABLED", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_CONNECT_WEBHOOK_SECRET",
   "RESEND_API_KEY", "RESEND_WEBHOOK_SECRET", "CUSTOM_DOMAIN_CNAME_TARGET", "CRON_SECRET"
 ];
 for (const name of requiredEnvironmentNames) if (!new RegExp(`^${name}=`, "m").test(envExample)) blockers.push(`.env.example is missing ${name}.`);
@@ -68,7 +68,7 @@ const report = {
   productionOnly: true,
   commitSha,
   artifactSha256,
-  migrationRange: "0001-0043",
+  migrationRange: "0001-0044",
   zeroDemoDataPolicy: true,
   fileCount: files.length,
   dirtyPathCount: dirtyPaths.length,

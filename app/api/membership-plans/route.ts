@@ -6,6 +6,7 @@ import { isMissingEditableMembershipMetadata } from "@/lib/supabase/error";
 import { withoutEditableMembershipMetadata } from "@/lib/membership-plan-compat";
 import { canAcceptPayments } from "@/lib/stripe-connect";
 import { syncConnectedMembershipPrices } from "@/lib/stripe-billing";
+import { paymentFeatureFlags } from "@/lib/community-settings";
 
 const schema = z.object({
   id: z.string().uuid().optional(),
@@ -27,7 +28,9 @@ const schema = z.object({
   color: z.string().regex(/^#[0-9a-f]{6}$/i),
   includedContent: z.object({
     podcasts: z.boolean(), courses: z.boolean(), resources: z.boolean(), events: z.boolean()
-  })
+  }),
+  billingInterval:z.enum(["monthly","annual","one_time","none"]), enrollmentType:z.enum(["open","inquiry","invite_only"]),
+  externalPurchaseUrl:z.string().url().or(z.literal("")),websiteShopUrl:z.string().url().or(z.literal("")),externalBookingUrl:z.string().url().or(z.literal("")),contactForPurchase:z.string().trim().max(320)
 }).superRefine((value, context) => {
   if (value.planType === "paid" && value.monthlyPrice <= 0 && value.annualPrice <= 0) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Paid plans require a monthly or annual price." });
@@ -53,7 +56,8 @@ export async function POST(request: NextRequest) {
     context.supabase.from("tenant_stripe_accounts").select("stripe_account_id,charges_enabled,card_payments_status,platform_fee_active").eq("tenant_id", context.tenant.id).maybeSingle(),
     input.id ? context.supabase.from("tenant_membership_plans").select("price_monthly,price_annual,currency,stripe_product_id,stripe_monthly_price_id,stripe_annual_price_id").eq("tenant_id", context.tenant.id).eq("id", input.id).maybeSingle() : Promise.resolve({ data: null })
   ]);
-  const paymentSetupRequired = input.planType === "paid" && !canAcceptPayments(stripe ?? {});
+  const flags = paymentFeatureFlags();
+  const paymentSetupRequired = input.planType === "paid" && (!flags.stripeConnect || !flags.paidMemberships || !flags.liveCheckout || !canAcceptPayments(stripe ?? {}));
   const effectiveStatus = input.planType === "paid" ? "inactive" : input.status;
   const values = {
     tenant_id: context.tenant.id,
@@ -78,6 +82,7 @@ export async function POST(request: NextRequest) {
     benefits: input.benefits,
     color: input.color,
     access_rules: input.includedContent,
+    billing_interval:input.billingInterval,enrollment_type:input.enrollmentType,external_purchase_url:input.externalPurchaseUrl||null,website_shop_url:input.websiteShopUrl||null,external_booking_url:input.externalBookingUrl||null,contact_for_purchase:input.contactForPurchase||null,
     updated_at: new Date().toISOString()
   };
   const query = context.supabase.from("tenant_membership_plans");
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
   let billingWarning: string | null = null;
   let finalPlan = result.data;
   let finalPaymentSetupRequired = paymentSetupRequired;
-  if (input.planType === "paid" && !paymentSetupRequired && stripe?.stripe_account_id) {
+  if (input.planType === "paid" && flags.stripeConnect && flags.paidMemberships && flags.liveCheckout && !paymentSetupRequired && stripe?.stripe_account_id) {
     try {
       const monthlyChanged = !currentPlan?.stripe_monthly_price_id || Number(currentPlan.price_monthly) !== input.monthlyPrice || currentPlan.currency !== input.currency;
       const annualChanged = !currentPlan?.stripe_annual_price_id || Number(currentPlan.price_annual) !== input.annualPrice || currentPlan.currency !== input.currency;

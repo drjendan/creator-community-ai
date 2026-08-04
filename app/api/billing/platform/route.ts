@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createCustomerPortal, createSubscriptionCheckout } from "@/lib/stripe-billing";
+import { paymentFeatureFlags } from "@/lib/community-settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveTenantWithPermission } from "@/lib/tenant-context";
 import { stripeBillingEnabled } from "@/lib/env";
@@ -9,9 +10,10 @@ import { stripeBillingEnabled } from "@/lib/env";
 const schema = z.object({ action: z.enum(["checkout", "portal"]), planSlug: z.string().trim().max(80).optional(), interval: z.enum(["month", "year"]).default("month") });
 
 export async function POST(request: NextRequest) {
-  if (!stripeBillingEnabled()) return NextResponse.json({ error: "Online billing is not enabled yet. Contact UpNexx for assisted plan changes." }, { status: 503 });
   const context = await getActiveTenantWithPermission("tenant.billing.manage");
   if (!context) return NextResponse.json({ error: "Tenant billing management permission is required." }, { status: 403 });
+  if (!paymentFeatureFlags().platformBilling || !paymentFeatureFlags().liveCheckout) return NextResponse.json({ error: "Platform billing is deferred and currently disabled." }, { status: 503 });
+  if (!stripeBillingEnabled()) return NextResponse.json({ error: "Online billing is not enabled yet. Contact UpNexx for assisted plan changes." }, { status: 503 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Choose a valid billing action." }, { status: 400 });
   const admin = createAdminClient();

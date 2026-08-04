@@ -6,6 +6,7 @@ import { canAcceptPayments } from "@/lib/stripe-connect";
 import { createCustomerPortal, createSubscriptionCheckout } from "@/lib/stripe-billing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripeBillingEnabled } from "@/lib/env";
+import { paymentFeatureFlags } from "@/lib/community-settings";
 
 const schema = z.object({
   tenantSlug: z.string().trim().min(2).max(100),
@@ -15,6 +16,7 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const paymentFlags = paymentFeatureFlags();
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Choose a valid membership plan." }, { status: 400 });
   const context = await getTenantMemberContext(parsed.data.tenantSlug);
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
   const existing = existingRows?.[0] ?? null;
   const returnUrl = new URL(`/demo/${context.tenant.slug}/welcome`, process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin).toString();
   if (parsed.data.action === "portal") {
-    if (!stripeBillingEnabled()) return NextResponse.json({ error: "Online billing is not enabled yet." }, { status: 503 });
+    if (!stripeBillingEnabled() || !paymentFlags.liveCheckout || !paymentFlags.paidMemberships) return NextResponse.json({ error: "Online billing is not enabled yet." }, { status: 503 });
     if (!existing?.stripe_customer_id) return NextResponse.json({ error: "No Stripe billing profile is available." }, { status: 409 });
     const { data: stripe } = await admin.from("tenant_stripe_accounts").select("stripe_account_id").eq("tenant_id", context.tenant.id).maybeSingle();
     if (!stripe?.stripe_account_id) return NextResponse.json({ error: "This organization is not connected to Stripe." }, { status: 409 });
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
     await admin.from("audit_logs").insert({ tenant_id: context.tenant.id, user_id: context.user.id, action: "member.subscription.free_activated", entity_type: "member_subscription", entity_id: result.data.id, metadata: { plan_id: plan.id } });
     return NextResponse.json({ activated: true });
   }
-  if (!stripeBillingEnabled()) return NextResponse.json({ error: "Paid memberships are not available yet. Free memberships remain available." }, { status: 503 });
+  if (!stripeBillingEnabled() || !paymentFlags.stripeConnect || !paymentFlags.liveCheckout || !paymentFlags.paidMemberships) return NextResponse.json({ error: "Paid memberships are not available yet. Free memberships and external purchase links remain available." }, { status: 503 });
   if (!stripe?.stripe_account_id || !canAcceptPayments(stripe)) return NextResponse.json({ error: "Paid memberships are temporarily unavailable because payment setup is incomplete." }, { status: 409 });
   const priceId = parsed.data.interval === "year" ? plan.stripe_annual_price_id : plan.stripe_monthly_price_id;
   if (!priceId) return NextResponse.json({ error: `This plan does not offer ${parsed.data.interval === "year" ? "annual" : "monthly"} billing.` }, { status: 409 });

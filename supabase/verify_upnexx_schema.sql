@@ -512,6 +512,14 @@ with checks(migration, requirement, installed) as (
         'new.status:=''active'''
         in pg_get_functiondef('public.validate_tenant_domain_lifecycle()'::regprocedure)
       )
+    ),
+    ('0044', 'community launch identity, sharing, lead, and commerce readiness',
+      exists(select 1 from information_schema.columns where table_schema='public' and table_name='tenant_branding' and column_name='community_name')
+      and exists(select 1 from information_schema.tables where table_schema='public' and table_name='tenant_community_settings')
+      and exists(select 1 from information_schema.tables where table_schema='public' and table_name='community_share_links')
+      and exists(select 1 from information_schema.tables where table_schema='public' and table_name='community_leads')
+      and exists(select 1 from information_schema.tables where table_schema='public' and table_name='tenant_products')
+      and exists(select 1 from pg_policies where schemaname='public' and tablename='tenant_community_settings')
     )
 )
 select

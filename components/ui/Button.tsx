@@ -37,6 +37,8 @@ type ButtonAsButton = CommonProps &
 type ButtonAsLink = CommonProps & {
   href: string;
   children?: React.ReactNode;
+  target?: string;
+  download?: boolean | string;
 };
 
 export type ButtonProps = ButtonAsButton | ButtonAsLink;
@@ -47,7 +49,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
   if ("href" in props && props.href !== undefined) {
     return (
-      <Link href={props.href} className={classes}>
+      <Link href={props.href} className={classes} target={props.target} download={props.download}>
         {props.children}
       </Link>
     );

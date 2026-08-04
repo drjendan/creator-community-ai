@@ -82,7 +82,7 @@ Priority labels: **[Must]**, **[Should]**, **[Later]**. A checked box requires l
 
 - [ ] **[Must]** Correct repository/root directory selected in Vercel
 - [ ] **[Must]** Production environment variables configured outside source control
-- [ ] **[Must]** Production Supabase migrations through 0040, schema verifier, and redirect URLs verified
+- [ ] **[Must]** Production Supabase migrations through 0044, schema verifier, and redirect URLs verified
 - [ ] **[Must]** Clean `npm run release:preflight` commit/artifact hashes frozen in an immutable release candidate
 - [ ] **[Must]** Matching production isolation and quality runs complete; all readiness gates passed or explicitly waived
 - [ ] **[Must]** Platform Owner approves the frozen candidate before the production push

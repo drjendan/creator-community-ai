@@ -23,14 +23,12 @@ export function BrandMark({
       ) : (
         <UpNexxIcon className="h-10 w-10" theme={inverse ? "dark" : "light"} />
       )}
-      {!logoUrl && (
       <span>
         <span className={cn("block font-display text-lg font-extrabold tracking-tight", inverse ? "text-white" : "text-brand-900")}>
           {name}
         </span>
         {!compact && <span className={cn("block max-w-[14rem] text-[9px] font-semibold leading-3", inverse ? "text-brand-200" : "text-brand-500")}>{tagline}</span>}
       </span>
-      )}
     </Link>
   );
 }

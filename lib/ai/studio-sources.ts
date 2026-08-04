@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export const studioSourceTypes = ["manual", "podcast_transcript", "course", "lesson", "document", "event", "community_discussion"] as const;
+export const studioSourceTypes = ["manual", "podcast", "podcast_transcript", "course", "module", "lesson", "document", "free_resource", "product", "membership", "event", "community_discussion"] as const;
 export type StudioSourceType = (typeof studioSourceTypes)[number];
 export type StudioSourceOption = { id: string; title: string; preview: string };
 
@@ -18,21 +18,30 @@ function lessonText(content: unknown) {
 
 export async function listStudioSources(tenantId: string) {
   const admin = createAdminClient();
-  const [episodes, courses, lessons, resources, events, posts] = await Promise.all([
+  const [podcasts, episodes, courses, modules, lessons, resources, products, memberships, events, posts] = await Promise.all([
+    admin.from("podcasts").select("id,title,description").eq("tenant_id", tenantId).neq("status", "archived").order("updated_at", { ascending: false }).limit(100),
     admin.from("episodes").select("id,title,description").eq("tenant_id", tenantId).neq("status", "archived").order("updated_at", { ascending: false }).limit(100),
     admin.from("courses").select("id,title,description").eq("tenant_id", tenantId).neq("status", "archived").order("updated_at", { ascending: false }).limit(100),
+    admin.from("course_modules").select("id,title,description").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(150),
     admin.from("lessons").select("id,title,content").eq("tenant_id", tenantId).neq("status", "archived").order("updated_at", { ascending: false }).limit(150),
     admin.from("resources").select("id,title,description").eq("tenant_id", tenantId).neq("status", "archived").order("updated_at", { ascending: false }).limit(100),
+    admin.from("tenant_products").select("id,name,description").eq("tenant_id",tenantId).neq("status","archived").order("updated_at",{ascending:false}).limit(100),
+    admin.from("tenant_membership_plans").select("id,name,description").eq("tenant_id",tenantId).neq("status","inactive").order("updated_at",{ascending:false}).limit(100),
     admin.from("events").select("id,title,description").eq("tenant_id", tenantId).neq("status", "archived").order("updated_at", { ascending: false }).limit(100),
     admin.from("community_posts").select("id,title,body").eq("tenant_id", tenantId).neq("status", "archived").order("updated_at", { ascending: false }).limit(100)
   ]);
-  const error = [episodes.error, courses.error, lessons.error, resources.error, events.error, posts.error].find(Boolean);
+  const error = [podcasts.error, episodes.error, courses.error, modules.error, lessons.error, resources.error, products.error, memberships.error, events.error, posts.error].find(Boolean);
   if (error) throw new Error(error.message);
   return {
+    podcast: (podcasts.data ?? []).map((row) => ({ id: row.id, title: row.title, preview: preview(row.description) })),
     podcast_transcript: (episodes.data ?? []).map((row) => ({ id: row.id, title: row.title, preview: preview(row.description) })),
     course: (courses.data ?? []).map((row) => ({ id: row.id, title: row.title, preview: preview(row.description) })),
+    module: (modules.data ?? []).map((row) => ({ id: row.id, title: row.title, preview: preview(row.description) })),
     lesson: (lessons.data ?? []).map((row) => ({ id: row.id, title: row.title, preview: preview(lessonText(row.content)) })),
     document: (resources.data ?? []).map((row) => ({ id: row.id, title: row.title, preview: preview(row.description) })),
+    free_resource: (resources.data ?? []).map((row) => ({ id: row.id, title: row.title, preview: preview(row.description) })),
+    product: (products.data ?? []).map((row) => ({ id: row.id, title: row.name, preview: preview(row.description) })),
+    membership: (memberships.data ?? []).map((row) => ({ id: row.id, title: row.name, preview: preview(row.description) })),
     event: (events.data ?? []).map((row) => ({ id: row.id, title: row.title, preview: preview(row.description) })),
     community_discussion: (posts.data ?? []).map((row) => ({ id: row.id, title: row.title || "Community discussion", preview: preview(row.body) }))
   } satisfies Record<Exclude<StudioSourceType, "manual">, StudioSourceOption[]>;
@@ -46,6 +55,10 @@ export async function resolveStudioSource(input: { tenantId: string; sourceType:
   }
   if (!input.sourceId) throw new Error("Choose a source from this tenant.");
   const admin = createAdminClient();
+  if (input.sourceType === "podcast") {
+    const {data}=await admin.from("podcasts").select("id,title,description").eq("tenant_id",input.tenantId).eq("id",input.sourceId).maybeSingle();
+    if(!data)throw new Error("The selected podcast is unavailable."); return ensureSource(data.title,[data.description]);
+  }
   if (input.sourceType === "podcast_transcript") {
     const [{ data: episode }, { data: transcripts }] = await Promise.all([
       admin.from("episodes").select("id,title,description").eq("tenant_id", input.tenantId).eq("id", input.sourceId).maybeSingle(),
@@ -63,8 +76,12 @@ export async function resolveStudioSource(input: { tenantId: string; sourceType:
     return ensureSource(course.title, [course.description, ...(modules ?? []).flatMap((module) => [module.title, ...(lessons ?? []).filter((lesson) => lesson.module_id === module.id).flatMap((lesson) => [lesson.title, lessonText(lesson.content)])])]);
   }
   const tables = {
+    module: { table: "course_modules", select: "id,title,description" },
     lesson: { table: "lessons", select: "id,title,content" },
     document: { table: "resources", select: "id,title,description,url" },
+    free_resource: { table: "resources", select: "id,title,description,url" },
+    product: { table: "tenant_products", select: "id,name,description,external_purchase_url" },
+    membership: { table: "tenant_membership_plans", select: "id,name,description,benefits" },
     event: { table: "events", select: "id,title,description,starts_at,location_url" },
     community_discussion: { table: "community_posts", select: "id,title,body" }
   } as const;
@@ -72,7 +89,7 @@ export async function resolveStudioSource(input: { tenantId: string; sourceType:
   const { data } = await admin.from(config.table).select(config.select).eq("tenant_id", input.tenantId).eq("id", input.sourceId).maybeSingle();
   if (!data) throw new Error("The selected source is unavailable.");
   const row = data as unknown as Record<string, unknown>;
-  return ensureSource(String(row.title || "Community discussion"), [row.description, row.body, lessonText(row.content), row.starts_at, row.location_url, row.url]);
+  return ensureSource(String(row.title || row.name || "Community discussion"), [row.description, row.body, lessonText(row.content), row.benefits, row.starts_at, row.location_url, row.url, row.external_purchase_url]);
 }
 
 function ensureSource(title: string, values: unknown[]) {

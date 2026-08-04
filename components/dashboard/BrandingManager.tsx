@@ -268,7 +268,7 @@ export function BrandingManager({
             Organization identity
           </h2>
           <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field label="Organization display name" htmlFor="brand-name" required>
+            <Field label="Community display name" htmlFor="brand-name" required>
               <Input
                 id="brand-name"
                 value={form.name}
@@ -402,11 +402,10 @@ export function BrandingManager({
               className="flex min-h-20 items-center justify-between gap-4 px-5"
               style={{ backgroundColor: form.primaryColor }}
             >
-              {form.logoUrl ? (
-                <img src={form.logoUrl} alt="" className="h-12 max-w-48 object-contain" />
-              ) : (
+              <div className="flex items-center gap-3">
+                {form.logoUrl && <img src={form.logoUrl} alt={`${form.name || "Community"} logo`} className="h-12 max-w-40 object-contain" />}
                 <strong className="text-white">{form.shortName || form.name || "Organization"}</strong>
-              )}
+              </div>
               <span className="text-sm font-semibold text-white">Navigation</span>
             </header>
             <section

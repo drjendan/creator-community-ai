@@ -1,0 +1,1 @@
+import {notFound} from "next/navigation";import {ProductCatalogManager} from "@/components/dashboard/ProductCatalogManager";import {getActiveTenantWithPermission} from "@/lib/tenant-context";export default async function ShopPage(){if(!(await getActiveTenantWithPermission("tenant.content.view")))notFound();return <ProductCatalogManager/>;}

@@ -8,7 +8,7 @@ import { openPayload, sealPayload } from "@/lib/security/sealed-payload";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Payload = { providerScope: "platform" | "tenant_fallback_platform"; tenantId?: string; message: EmailMessage };
-type DeliveryInput = Payload & { category: "tenant_invitation" | "platform_invitation" | "access_change" | "account_security"; sourceType?: "tenant_invitation" | "platform_invitation" | "tenant_membership" | "platform_administrator"; sourceId?: string; idempotencyKey?: string };
+type DeliveryInput = Payload & { category: "tenant_invitation" | "platform_invitation" | "access_change" | "account_security" | "lead_resource"; sourceType?: "tenant_invitation" | "platform_invitation" | "tenant_membership" | "platform_administrator" | "community_lead"; sourceId?: string; idempotencyKey?: string };
 type DeliveryRow = { id: string; tenant_id?: string; source_type?: string; source_id?: string; encrypted_payload: string; attempts: number; max_attempts: number };
 
 function platformProvider() {

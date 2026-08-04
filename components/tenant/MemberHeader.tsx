@@ -58,7 +58,8 @@ export function MemberHeader({
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between gap-4">
           <Link href={`${base}/welcome`} className="flex min-w-0 items-center gap-3 font-display text-xl font-extrabold text-brand-900">
-            {tenantLogo ? <img src={tenantLogo} alt={`${tenantName} logo`} className="h-12 max-w-48 object-contain" /> : <span className="truncate">{tenantName}<span className="text-accent-600">.</span></span>}
+            {tenantLogo && <img src={tenantLogo} alt={`${tenantName} logo`} className="h-12 max-w-40 object-contain" />}
+            <span className="truncate">{tenantName}<span className="text-accent-600">.</span></span>
           </Link>
 
           <nav className="hidden items-center gap-6 lg:flex" aria-label={`${tenantName} member navigation`}>

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getActiveTenantWithPermission } from "@/lib/tenant-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripeBillingEnabled } from "@/lib/env";
+import { paymentFeatureFlags } from "@/lib/community-settings";
 import {
   canAcceptPayments, createConnectState, createStandardConnectUrl,
   deauthorizeStandardAccount, retrieveConnectedAccount, stripeAccountValues
@@ -20,7 +21,7 @@ export async function GET() {
     .eq("tenant_id", context.tenant.id)
     .maybeSingle();
   let account = existing;
-  if (stripeBillingEnabled() && existing?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
+  if (stripeBillingEnabled() && paymentFeatureFlags().stripeConnect && existing?.stripe_account_id && process.env.STRIPE_SECRET_KEY) {
     try {
       const remote = await retrieveConnectedAccount(existing.stripe_account_id);
       const values = stripeAccountValues(remote);
@@ -37,12 +38,12 @@ export async function GET() {
   return NextResponse.json({
     account: account ?? { status: "not_connected" },
     paymentsEnabled: account ? canAcceptPayments(account) : false,
-    providerConfigured: stripeBillingEnabled() && Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_CONNECT_CLIENT_ID && process.env.STRIPE_CONNECT_STATE_SECRET)
+    providerConfigured: stripeBillingEnabled() && paymentFeatureFlags().stripeConnect && Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_CONNECT_CLIENT_ID && process.env.STRIPE_CONNECT_STATE_SECRET)
   });
 }
 
 export async function POST(request: NextRequest) {
-  if (!stripeBillingEnabled()) return NextResponse.json({ error: "Stripe integration is deferred and currently disabled." }, { status: 503 });
+  if (!stripeBillingEnabled() || !paymentFeatureFlags().stripeConnect) return NextResponse.json({ error: "Stripe integration is deferred and currently disabled." }, { status: 503 });
   const context = await getActiveTenantWithPermission("tenant.billing.manage");
   if (!context) return NextResponse.json({ error: "Tenant administrator access is required." }, { status: 403 });
   const admin = createAdminClient();

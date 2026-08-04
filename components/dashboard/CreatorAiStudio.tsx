@@ -4,16 +4,21 @@ import { FormEvent, useEffect, useState } from "react";
 import { Copy, Download, RefreshCw, Save, Sparkles } from "lucide-react";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 
-type SourceType = "manual" | "podcast_transcript" | "course" | "lesson" | "document" | "event" | "community_discussion";
+type SourceType = "manual" | "podcast" | "podcast_transcript" | "course" | "module" | "lesson" | "document" | "free_resource" | "product" | "membership" | "event" | "community_discussion";
 type SourceOption = { id: string; title: string; preview: string };
 type SourceGroups = Partial<Record<Exclude<SourceType, "manual">, SourceOption[]>>;
 
 const sourceTypeLabels: Record<SourceType, string> = {
   manual: "No source / start from scratch",
+  podcast: "Podcast",
   podcast_transcript: "Podcast episode",
   course: "Course",
+  module: "Course module",
   lesson: "Lesson",
   document: "Document or resource",
+  free_resource: "Free resource",
+  product: "Product",
+  membership: "Membership",
   event: "Event",
   community_discussion: "Community discussion"
 };
@@ -90,7 +95,7 @@ export function CreatorAiStudio() {
 
   const sourceReady = sourceType === "manual" ? sourceText.trim().length >= 20 : Boolean(sourceId);
   return <div className="space-y-6">
-    <div><div className="inline-flex items-center gap-2 rounded-full bg-success-soft px-3 py-1 text-xs font-bold uppercase tracking-wide text-success-strong"><Sparkles className="h-4 w-4" />Tenant-aware AI</div><h1 className="mt-3 font-display text-3xl font-extrabold text-brand-900">Creator AI Studio</h1><p className="mt-2 max-w-3xl text-sm text-brand-600">Choose a readable tenant source, generate grounded drafts, review the output, and save versioned content without handling database IDs.</p></div>
+    <div><div className="inline-flex items-center gap-2 rounded-full bg-success-soft px-3 py-1 text-xs font-bold uppercase tracking-wide text-success-strong"><Sparkles className="h-4 w-4" />AI Studio</div><h1 className="mt-3 font-display text-3xl font-extrabold text-brand-900">Create From My Content</h1><p className="mt-2 max-w-3xl text-sm text-brand-600">Choose your content by title, create a grounded draft, review it, and save it to your Content Library. Internal IDs and provider details stay out of this workflow.</p></div>
     <form id="creator-ai-form" onSubmit={generate} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Card className="space-y-5">
         <h2 className="font-display text-xl font-bold text-brand-900">1. Select source</h2>
@@ -103,7 +108,7 @@ export function CreatorAiStudio() {
       </Card>
       <Card className="space-y-5">
         <h2 className="font-display text-xl font-bold text-brand-900">2. Configure output</h2>
-        <Field label="Output type" htmlFor="ai-output"><Select id="ai-output" name="outputType"><option value="episode_summary">Episode summary</option><option value="show_notes">Show notes</option><option value="blog_post">Blog article</option><option value="linkedin_post">LinkedIn post</option><option value="facebook_post">Facebook post</option><option value="instagram_caption">Instagram caption</option><option value="x_post">X post</option><option value="email_newsletter">Email newsletter</option><option value="episode_topic_ideas">Episode topic ideas</option><option value="quiz_questions">Quiz questions</option><option value="discussion_questions">Discussion questions</option><option value="event_description">Event announcement</option><option value="promotional_copy">Promotional copy</option></Select></Field>
+        <Field label="What do you want to create?" htmlFor="ai-output"><Select id="ai-output" name="outputType"><option value="episode_summary">Episode summary</option><option value="show_notes">Show notes</option><option value="blog_post">Blog article</option><option value="newsletter">Newsletter</option><option value="email_campaign">Email campaign</option><option value="social_post">Social post</option><option value="social_post_series">Social post series</option><option value="linkedin_post">LinkedIn post</option><option value="facebook_post">Facebook post</option><option value="instagram_caption">Instagram caption</option><option value="x_post">X post</option><option value="tiktok_script">TikTok script</option><option value="youtube_description">YouTube description</option><option value="course_outline">Course outline</option><option value="lesson_plan">Lesson plan</option><option value="quiz_questions">Quiz</option><option value="worksheet">Worksheet</option><option value="discussion_questions">Discussion prompt</option><option value="landing_page_copy">Landing-page copy</option><option value="event_description">Event announcement</option><option value="product_description">Product description</option><option value="membership_promotion">Membership promotion</option><option value="graphic_brief">Graphic brief</option><option value="video_script">Video script</option><option value="call_to_action">Call to action</option><option value="promotional_copy">Promotional copy</option></Select></Field>
         <Field label="Audience" htmlFor="ai-audience"><Input id="ai-audience" name="audience" defaultValue="Current members" required /></Field>
         <Field label="Tone" htmlFor="ai-tone"><Input id="ai-tone" name="tone" defaultValue="Clear, warm, and professional" required /></Field>
         <Field label="Channel" htmlFor="ai-channel"><Select id="ai-channel" name="channel"><option value="general">General content</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="x">X</option><option value="email">Email</option><option value="blog">Blog</option><option value="website">Website</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option><option value="in_app">In-app announcement</option></Select></Field>

@@ -5,9 +5,11 @@ import { AppFooter } from "@/components/layout/AppFooter";
 import { poweredByText } from "@/lib/terminology";
 import { memberNavigation } from "@/lib/member-navigation";
 import { getMemberHeaderState } from "@/lib/member-experience";
+import { headers } from "next/headers";
 
 export async function TenantSiteShell({ tenant, children }: { tenant: Tenant; children: React.ReactNode }) {
-  const base = `/demo/${tenant.slug}`;
+  const requestHeaders = await headers();
+  const base = requestHeaders.get("x-upnexx-tenant-slug") === tenant.slug ? "" : `/demo/${tenant.slug}`;
   const { access, notifications } = await getMemberHeaderState(tenant.id, tenant.slug);
   return (
     <TenantBranding tenant={tenant}>
@@ -28,7 +30,7 @@ export async function TenantSiteShell({ tenant, children }: { tenant: Tenant; ch
           initialNotifications={notifications}
         />
         {children}
-        <AppFooter tenantName={tenant.name} tenantTagline={tenant.tagline} tenantSlug={tenant.slug} />
+        <AppFooter tenantName={tenant.name} tenantTagline={tenant.tagline} tenantSlug={tenant.slug} tenantBase={base} />
       </div>
     </TenantBranding>
   );

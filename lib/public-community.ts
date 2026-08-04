@@ -1,0 +1,14 @@
+import "server-only";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getTenantSiteBySlug } from "@/lib/tenant-site";
+
+export async function getPublicCommunity(slug:string){const tenant=await getTenantSiteBySlug(slug);if(!tenant)return null;const admin=createAdminClient();const [{data:branding},{data:settings,error:settingsError},{data:episodes},{data:courses},{data:resources},{data:events},{data:plans},{data:testimonials}]=await Promise.all([
+ admin.from("tenant_branding").select("community_name,podcast_name,display_name,tagline,full_description,public_contact_email,cover_image_url,logo_url").eq("tenant_id",tenant.id).maybeSingle(),
+ admin.from("tenant_community_settings").select("*").eq("tenant_id",tenant.id).maybeSingle(),
+ admin.from("episodes").select("id,title,description,publish_date,cover_image_url").eq("tenant_id",tenant.id).eq("status","published").eq("access_level","public").lte("publish_date",new Date().toISOString()).order("publish_date",{ascending:false}).limit(3),
+ admin.from("courses").select("id,title,description,publish_date,cover_image_url").eq("tenant_id",tenant.id).eq("status","published").eq("access_level","public").lte("publish_date",new Date().toISOString()).order("publish_date",{ascending:false}).limit(3),
+ admin.from("resources").select("id,title,description,url,resource_type,featured,publish_date,cover_image_url").eq("tenant_id",tenant.id).eq("status","published").eq("access_level","public").or(`publish_date.is.null,publish_date.lte.${new Date().toISOString()}`).order("featured",{ascending:false}).limit(6),
+ admin.from("events").select("id,title,description,starts_at,cover_image_url").eq("tenant_id",tenant.id).eq("status","published").eq("access_level","public").gte("starts_at",new Date().toISOString()).order("starts_at").limit(3),
+ admin.from("tenant_membership_plans").select("id,name,description,plan_type,price_monthly,price_annual,currency,benefits,payment_setup_required,external_purchase_url,contact_for_purchase").eq("tenant_id",tenant.id).eq("status","active").eq("visibility","public").order("sort_order").limit(6),
+ admin.from("community_testimonials").select("id,name,relationship,quote,image_url").eq("tenant_id",tenant.id).eq("approval_status","approved").order("display_order").limit(6)
+ ]);const legacy=settingsError?null:settings;return {tenant:{...tenant,name:branding?.display_name||branding?.community_name||tenant.name,tagline:branding?.tagline||tenant.tagline,description:branding?.full_description||tenant.description,logoUrl:branding?.logo_url||tenant.logoUrl,heroImageUrl:branding?.cover_image_url||tenant.heroImageUrl,podcastName:branding?.podcast_name||null,contactEmail:branding?.public_contact_email||tenant.supportEmail},settings:legacy,episodes:episodes??[],courses:courses??[],resources:resources??[],events:events??[],plans:plans??[],testimonials:testimonials??[]};}

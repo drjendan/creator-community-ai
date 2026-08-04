@@ -22,4 +22,5 @@ export interface Tenant {
   welcomeHeadline?: string;
   welcomeMessage?: string;
   supportEmail?: string;
+  podcastName?: string;
 }

@@ -14,7 +14,7 @@ const schema = z.object({
   sourceType: z.enum(studioSourceTypes),
   sourceId: z.string().uuid().optional().or(z.literal("")),
   sourceText: z.string().trim().max(50000).default(""),
-  outputType: z.enum(["episode_summary","show_notes","blog_post","linkedin_post","facebook_post","instagram_caption","x_post","email_newsletter","episode_topic_ideas","quiz_questions","discussion_questions","event_description","promotional_copy"]),
+  outputType: z.enum(["episode_summary","show_notes","blog_post","newsletter","email_campaign","social_post","social_post_series","linkedin_post","facebook_post","instagram_caption","x_post","tiktok_script","youtube_description","course_outline","lesson_plan","quiz_questions","worksheet","discussion_questions","landing_page_copy","event_description","product_description","membership_promotion","graphic_brief","video_script","call_to_action","promotional_copy"]),
   audience: z.string().trim().min(2).max(200),
   tone: z.string().trim().min(2).max(100),
   channel: z.enum(["general","linkedin","facebook","instagram","x","email","blog","website","youtube","tiktok","in_app"]),

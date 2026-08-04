@@ -1,0 +1,1 @@
+import{notFound}from"next/navigation";import{TestimonialManager}from"@/components/dashboard/TestimonialManager";import{getActiveTenantWithPermission}from"@/lib/tenant-context";export default async function TestimonialsPage(){if(!(await getActiveTenantWithPermission("tenant.settings.manage")))notFound();return <TestimonialManager/>}

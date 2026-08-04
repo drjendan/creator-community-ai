@@ -1,6 +1,6 @@
 # Production deployment readiness
 
-The application implementation is complete through Milestone 24 and migration 0040. No production deployment is recorded by the repository, and this release does not use staging.
+The application implementation includes the Community Launch milestone through migration 0044. No production deployment is recorded by the repository, and this release does not use staging.
 
 ## Implemented release controls
 
@@ -14,7 +14,7 @@ The application implementation is complete through Milestone 24 and migration 00
 
 ## Required before the production push
 
-1. Apply migrations through 0040 and run `supabase/verify_upnexx_schema.sql`.
+1. Apply migrations through 0044 and run `supabase/verify_upnexx_schema.sql`.
 2. Configure production-only environment values, provider webhooks, DNS, monitoring, backups, incident ownership, and authentication redirects.
 3. Run production RLS and quality verification with real credentials and evidence.
 4. Resolve or explicitly waive every Operational Readiness gate.

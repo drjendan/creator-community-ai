@@ -7,12 +7,14 @@ export function AppFooter({
   tenantName,
   tenantTagline,
   tenantSlug,
-  variant = "light"
+  variant = "light",
+  tenantBase
 }: {
   tenantName?: string;
   tenantTagline?: string;
   tenantSlug?: string;
   variant?: "light" | "dark";
+  tenantBase?: string;
 }) {
   const dark = variant === "dark";
   const tenantQuery = tenantSlug ? `?tenant=${encodeURIComponent(tenantSlug)}` : "";
@@ -36,7 +38,7 @@ export function AppFooter({
           <Link href="/cookies" className="hover:underline">Cookies</Link>
           <Link href="/acceptable-use" className="hover:underline">Acceptable Use</Link>
           <Link href="/accessibility" className="hover:underline">Accessibility</Link>
-          {tenantSlug && <Link href={`/demo/${tenantSlug}/settings/data`} className="hover:underline">Data &amp; Privacy</Link>}
+          {tenantSlug && <Link href={`${tenantBase ?? `/demo/${tenantSlug}`}/settings/data`} className="hover:underline">Data &amp; Privacy</Link>}
         </nav>
       </Container>
     </footer>
